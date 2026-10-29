@@ -376,7 +376,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Auth & Profile
-      isAuthenticated: true,
+      isAuthenticated: false,
       currentUser: initialCurrentUser,
       registeredUsers: [],
       setAuthenticated: (status) => set({ isAuthenticated: status }),

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { RightSidebar } from "./RightSidebar";
@@ -18,7 +18,8 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
-  const { theme, isMobileChatOpen } = useAppStore();
+  const router = useRouter();
+  const { theme, isMobileChatOpen, isAuthenticated } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   // Real-Time LAN Server Synchronization (Laptop <-> HP)
@@ -34,6 +35,13 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [theme]);
 
+  // Auth Protection: Jika belum login dan membuka halaman selain /auth, arahkan otomatis ke /auth
+  useEffect(() => {
+    if (mounted && !isAuthenticated && pathname !== "/auth") {
+      router.replace("/auth");
+    }
+  }, [mounted, isAuthenticated, pathname, router]);
+
   // If on /auth, /stories/create, /post/create, or /call page, render plain without app shell sidebars
   const isAuthPage = pathname === "/auth";
   const isStoryStudio = pathname === "/stories/create";
@@ -45,6 +53,15 @@ export function AppShell({ children }: AppShellProps) {
       <main className="min-h-screen bg-white dark:bg-[#0B0F17] text-[#0F172A] dark:text-slate-100">
         {children}
       </main>
+    );
+  }
+
+  // Tampilkan loading spinner bersih saat mengalihkan pengunjung yang belum login
+  if (mounted && !isAuthenticated) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-white dark:bg-[#0B0F17]">
+        <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+      </div>
     );
   }
 
