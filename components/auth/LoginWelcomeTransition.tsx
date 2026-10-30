@@ -15,28 +15,25 @@ export function LoginWelcomeTransition({ onComplete }: LoginWelcomeTransitionPro
   const [isOverlayFading, setIsOverlayFading] = useState(false);
 
   useEffect(() => {
-    // Fase 1: Menyiapkan ruang kerja (0 - 600ms)
+    // Fase super cepat & responsif (Total 450ms - 550ms)
     const t1 = setTimeout(() => {
       setPhase(1);
-      setProgressWidth(68);
-    }, 600);
+      setProgressWidth(70);
+    }, 120);
 
-    // Fase 2: Sinkronisasi data selesai & Siap (600 - 1300ms)
     const t2 = setTimeout(() => {
       setPhase(2);
       setProgressWidth(100);
-    }, 1300);
+    }, 280);
 
-    // Fase 3: Exit / Pamit melesat (1600ms)
     const t3 = setTimeout(() => {
       setPhase(3);
-    }, 1600);
+    }, 420);
 
-    // Fase 4: Overlay fade-out & trigger onComplete (1850ms)
     const t4 = setTimeout(() => {
       setIsOverlayFading(true);
-      setTimeout(onComplete, 350);
-    }, 1850);
+      setTimeout(onComplete, 120);
+    }, 500);
 
     return () => {
       clearTimeout(t1);

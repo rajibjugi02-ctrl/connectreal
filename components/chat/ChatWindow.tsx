@@ -216,6 +216,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
     onlineUsers,
     typingStatus,
     stories,
+    contactAliases,
   } = useAppStore();
 
   const { t } = useTranslation();
@@ -371,6 +372,16 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
   };
 
   const getSenderInfo = (senderId: string) => {
+    if (
+      senderId === currentUser.id ||
+      (currentUser.username && senderId.toLowerCase() === currentUser.username.toLowerCase())
+    ) {
+      return {
+        name: currentUser.name,
+        username: currentUser.username,
+        avatarUrl: currentUser.avatarUrl,
+      };
+    }
     const found =
       registeredUsers.find(
         (u) =>
@@ -390,8 +401,12 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
           p.username === senderId ||
           p.username?.toLowerCase() === senderId.toLowerCase()
       );
+    const cleanName =
+      found?.name && found.name !== activeConv?.groupName
+        ? found.name
+        : found?.username || senderId;
     return {
-      name: found?.name || senderId,
+      name: cleanName,
       username: found?.username || senderId,
       avatarUrl:
         found?.avatarUrl ||
@@ -881,17 +896,13 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
 
   // Perekaman pesan suara real-time dengan MediaRecorder atau antarmuka mikrofon bawaan smartphone
   const startRecording = async () => {
-    // Pada browser mobile tanpa dukungan getUserMedia langsung (misal Safari iOS di jaringan HTTP LAN)
+    // Pada browser mobile tanpa dukungan getUserMedia langsung
     if (
       typeof navigator === "undefined" ||
       !navigator.mediaDevices ||
       !navigator.mediaDevices.getUserMedia
     ) {
-      if (mobileMicInputRef.current) {
-        mobileMicInputRef.current.click();
-      } else {
-        showToast("Akses mikrofon tidak didukung di peramban ini");
-      }
+      showToast("Akses mikrofon tidak didukung di peramban ini");
       return;
     }
 
@@ -943,12 +954,8 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
         setRecordDuration((prev) => prev + 1);
       }, 1000);
     } catch (err: any) {
-      console.warn("Direct microphone hardware access unavailable, opening native audio recorder:", err);
-      if (mobileMicInputRef.current) {
-        mobileMicInputRef.current.click();
-      } else {
-        showToast("Izin mikrofon diperlukan untuk merekam suara");
-      }
+      console.warn("Direct microphone hardware access unavailable:", err);
+      showToast("Izin mikrofon diperlukan untuk merekam suara langsung");
     }
   };
 
@@ -1260,6 +1267,36 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
     showToast("Foto berhasil diunduh");
   };
 
+  // Real document & file download handler
+  const handleDownloadFile = async (e: React.MouseEvent, url: string, fileName?: string) => {
+    e.stopPropagation();
+    try {
+      if (url.startsWith("data:") || url.startsWith("blob:")) {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = fileName || "dokumen";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        showToast("Berkas berhasil diunduh");
+        return;
+      }
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName || "dokumen";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+      showToast("Berkas berhasil diunduh");
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
   const handleShareToStory = () => {
     if (!lightboxImage?.url) return;
     if (typeof window !== "undefined") {
@@ -1294,7 +1331,8 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
     );
   }
 
-  const displayName = activeConv.isGroup ? activeConv.groupName : (partner?.name || "Pengguna");
+  const localAlias = partner ? (contactAliases[partner.id] || contactAliases[partner.username] || "") : "";
+  const displayName = activeConv.isGroup ? activeConv.groupName : (localAlias || partner?.name || "Pengguna");
   const participantProfileUrl = `/profile/${partner?.username || activeConv.participant?.username || "user"}`;
 
   const isTargetFollowing = Boolean(
@@ -1325,7 +1363,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
           {activeConv.isGroup ? (
             <button
               type="button"
-              onClick={() => setIsGroupDetailsOpen(true)}
+              onClick={() => router.push(`/messages/group/${activeConv.id}/info`)}
               className="relative shrink-0 group text-left"
               title="Lihat detail grup"
             >
@@ -1358,7 +1396,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
               {activeConv.isGroup ? (
                 <button
                   type="button"
-                  onClick={() => setIsGroupDetailsOpen(true)}
+                  onClick={() => router.push(`/messages/group/${activeConv.id}/info`)}
                   className="font-bold text-sm text-slate-900 dark:text-slate-100 hover:underline block truncate text-left"
                 >
                   {displayName}
@@ -1387,7 +1425,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => setIsGroupDetailsOpen(true)}
+                    onClick={() => router.push(`/messages/group/${activeConv.id}/info`)}
                     className="text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-sky-400 transition-colors text-left"
                   >
                     {activeConv.participantIds?.length || activeConv.participants?.length || 1} Anggota • Ketuk untuk detail
@@ -1409,17 +1447,21 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
 
         {/* Action Buttons: Group Details & 3-Dots Menu */}
         <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400 relative">
-          {activeConv.isGroup && (
-            <button
-              type="button"
-              onClick={() => setIsGroupDetailsOpen(true)}
-              aria-label="Detail Grup"
-              title="Detail & Pengaturan Grup"
-              className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 hover:text-blue-600 dark:hover:text-sky-400 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-95"
-            >
-              <Info className="w-4 h-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (activeConv.isGroup) {
+                router.push(`/messages/group/${activeConv.id}/info`);
+              } else {
+                router.push(`/messages/contact/${partner.id || partner.username}/info`);
+              }
+            }}
+            aria-label="Informasi & Detail"
+            title={activeConv.isGroup ? "Detail & Info Grup" : "Info Kontak & Media"}
+            className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 hover:text-blue-600 dark:hover:text-sky-400 transition-colors focus-visible:ring-2 focus-visible:ring-blue-500 active:scale-95"
+          >
+            <Info className="w-4 h-4" />
+          </button>
 
           {/* 3-Dots More Options Menu Trigger */}
           <div className="relative">
@@ -1808,6 +1850,49 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                       </div>
                     )}
 
+                    {/* Story Mention Card (Ala Instagram DM: Menyebut Anda dalam cerita + Tombol "Tambahkan ke Cerita Anda") */}
+                    {msg.storyMention && (
+                      <div className="mb-2 p-3 rounded-2xl border border-sky-400/40 bg-gradient-to-br from-sky-500/15 via-blue-500/10 to-indigo-500/15 backdrop-blur-xs space-y-2.5 max-w-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-sky-500 animate-ping" />
+                          <span className="text-xs font-bold text-sky-600 dark:text-sky-300">
+                            @{msg.storyMention.authorUsername} menyebut Anda dalam cerita
+                          </span>
+                        </div>
+                        {msg.storyMention.mediaUrl && (
+                          <div className="relative w-full h-36 rounded-xl overflow-hidden bg-black flex items-center justify-center">
+                            {msg.storyMention.mediaType === "video" ? (
+                              <video
+                                src={msg.storyMention.mediaUrl}
+                                className="w-full h-full object-cover"
+                                muted
+                                playsInline
+                              />
+                            ) : (
+                              <img
+                                src={msg.storyMention.mediaUrl}
+                                alt="Story Mention"
+                                className="w-full h-full object-cover"
+                              />
+                            )}
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(
+                              `/stories/create?repostMedia=${encodeURIComponent(msg.storyMention!.mediaUrl)}&repostStoryId=${msg.storyMention!.storyId}`
+                            );
+                          }}
+                          className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 hover:from-blue-700 hover:to-sky-600 text-white font-bold text-xs shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Tambahkan ke Cerita Anda</span>
+                        </button>
+                      </div>
+                    )}
+
                     {/* Story Reply Preview (Thumbnail cerita + Header Balasan - Interaktif & Bisa Diklik) */}
                     {msg.storyReply && (
                       <div
@@ -2008,11 +2093,11 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                           </div>
                         </div>
                         {msg.mediaUrl && (
-                          <a
-                            href={msg.mediaUrl}
-                            download={msg.fileName || "dokumen"}
+                          <button
+                            type="button"
+                            onClick={(e) => handleDownloadFile(e, msg.mediaUrl!, msg.fileName)}
                             className={cn(
-                              "p-2 rounded-xl transition-colors",
+                              "p-2 rounded-xl transition-colors cursor-pointer",
                               isSender
                                 ? "hover:bg-white/20 text-white"
                                 : "hover:bg-black/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300"
@@ -2020,7 +2105,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                             title={t.chatDocDownloaded}
                           >
                             <Download className="w-4 h-4" />
-                          </a>
+                          </button>
                         )}
                       </div>
                     ) : (
@@ -2158,12 +2243,12 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
         </div>
       )}
 
-      {/* iOS-Style Emoji Picker Pop-over */}
+      {/* Universal Standard Unicode Emoji Picker */}
       {showEmojiPicker && (
         <div className="absolute bottom-16 left-4 right-4 sm:left-4 sm:right-auto sm:w-80 bg-white dark:bg-slate-800 border border-[#E2E8F0] dark:border-slate-700 rounded-3xl shadow-2xl z-30 p-3 animate-in fade-in slide-in-from-bottom-2 duration-150">
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#E2E8F0] dark:border-slate-700">
-            <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-              Apple / iOS Emoji
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              Emoji Universal
             </span>
             <button
               type="button"
@@ -2192,10 +2277,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
             ))}
           </div>
 
-          <div
-            className="grid grid-cols-7 gap-1 max-h-48 overflow-y-auto p-1"
-            style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif' }}
-          >
+          <div className="grid grid-cols-7 gap-1 max-h-48 overflow-y-auto p-1 font-sans">
             {EMOJI_CATEGORIES[emojiCategory].emojis.map((emoji, i) => (
               <button
                 key={i}

@@ -30,6 +30,7 @@ import {
   Undo2,
   AtSign,
   User as UserIcon,
+  Users,
 } from "lucide-react";
 import { useAppStore, getRealCurrentSession } from "@/lib/store/useAppStore";
 import { useTranslation, languageList } from "@/lib/i18n/translations";
@@ -382,6 +383,30 @@ export default function SettingsPage() {
               );
             })}
           </div>
+
+          {/* Quick Switch Account Card on Mobile */}
+          <Link
+            href="/settings/switch-account"
+            className="flex items-center justify-between p-3.5 rounded-2xl border border-blue-500/25 bg-blue-500/5 hover:bg-blue-500/10 active:scale-98 transition-all"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 shrink-0">
+                <Users className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span>Switch Account</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                    Maks 3
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                  Ganti atau tambah akun baru di perangkat ini
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-4 h-4 text-blue-500 shrink-0 ml-2" />
+          </Link>
         </div>
 
         {/* Mobile Sub-Section Header */}
@@ -1510,6 +1535,35 @@ export default function SettingsPage() {
                   >
                     Hapus Akun
                   </button>
+                </div>
+              </div>
+
+              {/* Fitur Switch Account (Batas Maksimal 3 Akun) */}
+              <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-blue-500/30 bg-blue-500/5">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        Switch Account (Ganti Akun)
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                          Maks 3 Akun
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-md">
+                        Beralih cepat antar akun yang tersimpan atau tambahkan akun baru tanpa harus logout manual.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/settings/switch-account"
+                    className="shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-500 hover:bg-blue-600 text-white active:scale-95 transition-all shadow-xs"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Buka Switch Account</span>
+                  </Link>
                 </div>
               </div>
             </div>

@@ -170,8 +170,7 @@ export default function CreatePostPage() {
       primaryMedia,
       mediaUrls,
       activeFilter,
-      taggedUsers,
-      selectedMusicTrack || undefined
+      taggedUsers
     );
 
     setTimeout(() => {
@@ -495,53 +494,6 @@ export default function CreatePostPage() {
           )}
         </div>
 
-        {/* Music Track Section */}
-        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111827] space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-              <Music2 className="w-4 h-4 text-pink-500" />
-              Musik Latar & Lirik Beat:
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowMusicPicker(true)}
-              className="text-xs font-semibold text-pink-600 dark:text-pink-400 hover:underline cursor-pointer"
-            >
-              {selectedMusicTrack ? "Ganti Lagu" : "+ Tambah Musik"}
-            </button>
-          </div>
-
-          {selectedMusicTrack ? (
-            <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-blue-500/10 border border-pink-200 dark:border-pink-800/40">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-pink-500 text-white flex items-center justify-center shrink-0">
-                  <Music2 className="w-4 h-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                    {selectedMusicTrack.title}
-                  </p>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    {selectedMusicTrack.artist} • Lirik Sinkronisasi Aktif
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedMusicTrack(null)}
-                className="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-slate-500 hover:text-red-500 transition-colors"
-                title="Hapus lagu"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ) : (
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Pilih dari perpustakaan audio bebas royalti atau unggah berkas audio sendiri. Dilengkapi lirik yang beranimasi mengikuti ketukan nada musik!
-            </p>
-          )}
-        </div>
-
         {/* Big Bottom Share Action for Convenience */}
         <div className="pt-4 pb-12">
           <button
@@ -555,18 +507,6 @@ export default function CreatePostPage() {
           </button>
         </div>
       </main>
-
-      {showMusicPicker && (
-        <MusicPickerModal
-          isOpen={showMusicPicker}
-          selectedTrackId={selectedMusicTrack?.id}
-          onSelectTrack={(track) => {
-            setSelectedMusicTrack(track);
-            setShowMusicPicker(false);
-          }}
-          onClose={() => setShowMusicPicker(false)}
-        />
-      )}
     </div>
   );
 }

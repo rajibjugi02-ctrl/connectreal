@@ -88,6 +88,7 @@ export function useServerSync() {
         const state = useAppStore.getState();
         const currentUserId = state.currentUser?.id;
         const currentUsername = (state.currentUser?.username || "").toLowerCase();
+        const myClearedMap = (currentUserId ? state.clearedConversations?.[currentUserId] : undefined) || {};
 
         // Status mengetik jika data server tidak termodifikasi
         if (json.notModified) {
@@ -186,75 +187,75 @@ export function useServerSync() {
         }
 
         // 2. Sinkronisasi Pesan & Percakapan (Preservasi penuh riwayat pesan tanpa delay/flicker)
-        const myClearedMap = state.clearedConversations?.[currentUserId] || {};
-
         if (serverData.messages && typeof serverData.messages === "object") {
-          let messagesChanged = false;
-          const mergedMessages = { ...state.messages };
+          useAppStore.setState((currentState) => {
+            const currentClearedMap = currentState.clearedConversations?.[currentUserId] || {};
+            const nextMessages = { ...currentState.messages };
+            let hasChanges = false;
 
-          for (const [convId, serverMsgList] of Object.entries(serverData.messages)) {
-            const clearedTime = myClearedMap[convId] || 0;
-            const serverValidMsgs = (serverMsgList as MessageItem[]).filter(
-              (m) => !(currentUserId && m.deletedForUsers?.includes(currentUserId))
-            );
-
-            // Pertahankan seluruh pesan lokal (jangan buang pesan yang baru dikirim secara optimistik)
-            const localList = mergedMessages[convId] || [];
-            const msgMap = new Map<string, MessageItem>();
-
-            for (const m of localList) {
-              if (!(currentUserId && m.deletedForUsers?.includes(currentUserId))) {
-                msgMap.set(m.id, m);
-              }
-            }
-
-            let convUpdated = false;
-
-            for (const sMsg of serverValidMsgs) {
-              const msgTime = new Date(sMsg.createdAt).getTime();
-              if (clearedTime > 0 && msgTime <= clearedTime) {
-                if (msgMap.has(sMsg.id)) {
-                  msgMap.delete(sMsg.id);
-                  convUpdated = true;
-                }
-                continue;
-              }
-
-              const existing = msgMap.get(sMsg.id);
-              if (!existing) {
-                msgMap.set(sMsg.id, sMsg);
-                convUpdated = true;
-              } else {
-                // Sinkronisasi teks editan, reaksi emoji antar device, dan status baca
-                const reactionsDiff =
-                  JSON.stringify(sMsg.reactions || []) !== JSON.stringify(existing.reactions || []);
-                const editedDiff =
-                  (sMsg.isEdited && sMsg.content !== existing.content) ||
-                  (sMsg.editedAt && sMsg.editedAt !== existing.editedAt);
-
-                if (reactionsDiff || editedDiff || sMsg.isRead !== existing.isRead) {
-                  msgMap.set(sMsg.id, {
-                    ...existing,
-                    ...sMsg,
-                    reactions: sMsg.reactions || existing.reactions,
-                  });
-                  convUpdated = true;
-                }
-              }
-            }
-
-            if (convUpdated || msgMap.size !== localList.length) {
-              const sorted = Array.from(msgMap.values()).sort(
-                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            for (const [convId, serverMsgList] of Object.entries(serverData.messages)) {
+              const clearedTime = currentClearedMap[convId] || 0;
+              const serverValidMsgs = (serverMsgList as MessageItem[]).filter(
+                (m) => !(currentUserId && m.deletedForUsers?.includes(currentUserId))
               );
-              mergedMessages[convId] = sorted;
-              messagesChanged = true;
-            }
-          }
 
-          if (messagesChanged) {
-            useAppStore.setState({ messages: mergedMessages });
-          }
+              // Ambil pesan lokal terkini (termasuk yang baru saja dikirim detik ini)
+              const localList = nextMessages[convId] || [];
+              const msgMap = new Map<string, MessageItem>();
+
+              for (const m of localList) {
+                if (!(currentUserId && m.deletedForUsers?.includes(currentUserId))) {
+                  msgMap.set(m.id, m);
+                }
+              }
+
+              let convChanged = false;
+
+              for (const sMsg of serverValidMsgs) {
+                const msgTime = new Date(sMsg.createdAt).getTime();
+                if (clearedTime > 0 && msgTime <= clearedTime) {
+                  if (msgMap.has(sMsg.id)) {
+                    msgMap.delete(sMsg.id);
+                    convChanged = true;
+                  }
+                  continue;
+                }
+
+                const existing = msgMap.get(sMsg.id);
+                if (!existing) {
+                  msgMap.set(sMsg.id, sMsg);
+                  convChanged = true;
+                } else {
+                  // Merge status tanpa menimpa atribut lokal penting
+                  const reactionsDiff =
+                    JSON.stringify(sMsg.reactions || []) !== JSON.stringify(existing.reactions || []);
+                  const editedDiff =
+                    (sMsg.isEdited && sMsg.content !== existing.content) ||
+                    (sMsg.editedAt && sMsg.editedAt !== existing.editedAt);
+
+                  if (reactionsDiff || editedDiff || sMsg.isRead !== existing.isRead) {
+                    msgMap.set(sMsg.id, {
+                      ...existing,
+                      ...sMsg,
+                      reactions: sMsg.reactions || existing.reactions,
+                    });
+                    convChanged = true;
+                  }
+                }
+              }
+
+              if (convChanged || msgMap.size !== localList.length) {
+                const sorted = Array.from(msgMap.values()).sort(
+                  (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+                );
+                nextMessages[convId] = sorted;
+                hasChanges = true;
+              }
+            }
+
+            if (!hasChanges) return currentState;
+            return { messages: nextMessages };
+          });
         }
 
         // 3. Sinkronisasi Percakapan (Conversations List)

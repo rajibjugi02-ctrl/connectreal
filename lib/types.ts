@@ -157,7 +157,24 @@ export interface MessageItem {
     mediaType: "image" | "video";
     authorUsername: string;
   };
+  storyMention?: {
+    storyId: string;
+    mediaUrl: string;
+    mediaType: "image" | "video";
+    authorUsername: string;
+    authorName: string;
+  };
   deletedForUsers?: string[];
+}
+
+export interface SavedAccountItem {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatarUrl: string;
+  password?: string;
+  isOAuth?: boolean;
 }
 
 export interface TextOverlay {

@@ -14,9 +14,10 @@ import {
   MusicTrack,
   PostComment,
   CallSignalItem,
+  SavedAccountItem,
 } from "../types";
 
-export type { RegisteredUser };
+export type { RegisteredUser, SavedAccountItem };
 import {
   currentUser as initialCurrentUser,
   initialOnlineUsers,
@@ -27,6 +28,24 @@ import {
   initialTrends,
   initialStories,
 } from "../mock-data";
+
+export const emptyCurrentUser: UserProfile = {
+  id: "",
+  name: "",
+  username: "",
+  email: "",
+  avatarUrl: "",
+  bannerUrl: "",
+  bannerType: "image",
+  bio: "",
+  location: "",
+  links: [],
+  isOnline: false,
+  followersCount: 0,
+  followingCount: 0,
+  postsCount: 0,
+  phone: "",
+};
 import { generateBotReply } from "../bot/connectBot";
 import { pushToServer } from "../sync/clientSync";
 
@@ -87,17 +106,27 @@ interface AppState {
   toggleTheme: () => void;
   setTheme: (theme: "light" | "dark") => void;
   setLanguage: (lang: SupportedLanguage) => void;
+  isHydrated: boolean;
+  setHydrated: (status: boolean) => void;
 
   // Auth & Profile
   isAuthenticated: boolean;
   currentUser: UserProfile;
   registeredUsers: RegisteredUser[];
+  savedAccounts: SavedAccountItem[];
+  switchAccount: (userId: string) => boolean;
+  addSavedAccount: (account: SavedAccountItem) => void;
+  removeSavedAccount: (userId: string) => void;
   setAuthenticated: (status: boolean) => void;
   updateCurrentUser: (updates: Partial<UserProfile>) => void;
   registerUser: (userData: { name: string; username: string; email: string; password?: string }) => { success: boolean; message: string };
   loginUser: (identifier: string, password?: string) => { success: boolean; message: string };
   loginOAuthUser: (userData: { name: string; email: string; avatarUrl?: string; provider?: string }) => { success: boolean; user: UserProfile };
   logout: () => void;
+
+  // Contact Aliases (Custom Nickname/Alias per user)
+  contactAliases: Record<string, string>;
+  setContactAlias: (contactId: string, alias: string) => void;
 
   // Social Feed & Archive
   posts: PostItem[];
@@ -186,6 +215,13 @@ interface AppState {
         mediaUrl: string;
         mediaType: "image" | "video";
         authorUsername: string;
+      };
+      storyMention?: {
+        storyId: string;
+        mediaUrl: string;
+        mediaType: "image" | "video";
+        authorUsername: string;
+        authorName: string;
       };
     }
   ) => void;
@@ -347,9 +383,11 @@ export function sanitizePersistedStore(state: any) {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // Theme defaults to dark mode per desktop-first modern dev profile
-      theme: "dark",
+      // Theme defaults to light mode per specification
+      theme: "light",
       language: "id",
+      isHydrated: false,
+      setHydrated: (isHydrated) => set({ isHydrated }),
       toggleTheme: () => {
         const next = get().theme === "dark" ? "light" : "dark";
         if (typeof document !== "undefined") {
@@ -377,8 +415,86 @@ export const useAppStore = create<AppState>()(
 
       // Auth & Profile
       isAuthenticated: false,
-      currentUser: initialCurrentUser,
+      currentUser: emptyCurrentUser,
       registeredUsers: [],
+      savedAccounts: [],
+      contactAliases: {},
+
+      switchAccount: (userId: string) => {
+        const cleanId = userId.toLowerCase().trim();
+        const account = get().savedAccounts.find(
+          (a) => a.id.toLowerCase() === cleanId || a.username.toLowerCase() === cleanId
+        );
+        if (!account) return false;
+
+        const registered = get().registeredUsers.find(
+          (u) => u.id.toLowerCase() === account.id.toLowerCase() || u.username.toLowerCase() === account.username.toLowerCase()
+        );
+
+        const activeProfile: UserProfile = {
+          id: account.id,
+          name: registered?.name || account.name,
+          username: registered?.username || account.username,
+          email: registered?.email || account.email,
+          avatarUrl: registered?.avatarUrl || account.avatarUrl,
+          bannerUrl: registered?.bannerUrl || "",
+          bannerType: registered?.bannerType || "image",
+          bio: registered?.bio || "",
+          location: registered?.location || "",
+          links: registered?.links || [],
+          phone: registered?.phone || "",
+          isOnline: true,
+          isPrivate: Boolean(registered?.isPrivate),
+          showOnlineStatus: registered?.showOnlineStatus !== false,
+          onlineVisibility: registered?.onlineVisibility || "everyone",
+          followersCount: registered?.followersCount || 0,
+          followingCount: registered?.followingCount || 0,
+          postsCount: registered?.postsCount || 0,
+          createdAt: registered?.createdAt || new Date().toISOString(),
+        };
+
+        const currentSaved = get().savedAccounts || [];
+        const nextSaved = [
+          account,
+          ...currentSaved.filter((a) => a.id !== account.id && a.username.toLowerCase() !== account.username.toLowerCase()),
+        ].slice(0, 3);
+
+        set(() => ({
+          isAuthenticated: true,
+          currentUser: activeProfile,
+          savedAccounts: nextSaved,
+        }));
+
+        pushToServer("USER_STATUS", { userId: activeProfile.id, isOnline: true });
+        return true;
+      },
+
+      addSavedAccount: (account: SavedAccountItem) => {
+        const currentSaved = get().savedAccounts || [];
+        const filtered = currentSaved.filter(
+          (a) => a.id !== account.id && a.username.toLowerCase() !== account.username.toLowerCase()
+        );
+        const updated = [account, ...filtered].slice(0, 3);
+        set({ savedAccounts: updated });
+      },
+
+      removeSavedAccount: (userId: string) => {
+        const cleanId = userId.toLowerCase().trim();
+        set((state) => ({
+          savedAccounts: state.savedAccounts.filter(
+            (a) => a.id.toLowerCase() !== cleanId && a.username.toLowerCase() !== cleanId
+          ),
+        }));
+      },
+
+      setContactAlias: (contactId: string, alias: string) => {
+        set((state) => ({
+          contactAliases: {
+            ...state.contactAliases,
+            [contactId]: alias.trim(),
+          },
+        }));
+      },
       setAuthenticated: (status) => set({ isAuthenticated: status }),
       updateCurrentUser: (updates) =>
         set((state) => {
@@ -545,12 +661,28 @@ export const useAppStore = create<AppState>()(
 
         const userBookmarks = get().userBookmarks?.[found.id] || [];
 
+        const savedAccount: SavedAccountItem = {
+          id: found.id,
+          name: found.name,
+          username: found.username,
+          email: found.email,
+          avatarUrl: found.avatarUrl,
+          password: password || found.password,
+          isOAuth: false,
+        };
+        const currentSaved = get().savedAccounts || [];
+        const nextSaved = [
+          savedAccount,
+          ...currentSaved.filter((a) => a.id !== savedAccount.id && a.username.toLowerCase() !== savedAccount.username.toLowerCase()),
+        ].slice(0, 3);
+
         // Beralih ke akun yang ditemukan dengan data bersih milik akun tersebut
         set((state) => ({
           isAuthenticated: true,
           isPrivateAccount: Boolean(found.isPrivate),
           showOnlineStatus: found.showOnlineStatus !== false,
           onlineVisibility: found.onlineVisibility || "everyone",
+          savedAccounts: nextSaved,
           currentUser: {
             id: found.id,
             name: found.name,
@@ -678,9 +810,24 @@ export const useAppStore = create<AppState>()(
           createdAt: existingUser.createdAt || new Date().toISOString(),
         };
 
+        const savedAccount: SavedAccountItem = {
+          id: activeProfile.id,
+          name: activeProfile.name,
+          username: activeProfile.username,
+          email: activeProfile.email,
+          avatarUrl: activeProfile.avatarUrl,
+          isOAuth: true,
+        };
+        const currentSaved = get().savedAccounts || [];
+        const nextSaved = [
+          savedAccount,
+          ...currentSaved.filter((a) => a.id !== savedAccount.id && a.username.toLowerCase() !== savedAccount.username.toLowerCase()),
+        ].slice(0, 3);
+
         set((state) => ({
           isAuthenticated: true,
           currentUser: activeProfile,
+          savedAccounts: nextSaved,
           conversations: isNewUser
             ? []
             : state.conversations.filter(
@@ -737,11 +884,11 @@ export const useAppStore = create<AppState>()(
       },
 
       // Social Feed
-      posts: initialPosts,
+      posts: [],
       archivedPosts: [],
       userBookmarks: {},
-      onlineUsers: initialOnlineUsers,
-      trends: initialTrends,
+      onlineUsers: [],
+      trends: [],
 
       addPost: (content, mediaUrl, mediaUrls, filter, taggedUsers, musicTrack) => {
         const user = get().currentUser;
@@ -1208,7 +1355,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Stories
-      stories: initialStories,
+      stories: [],
       archivedStories: [],
       storyUploadQuality: "high",
       setStoryUploadQuality: (q) => set({ storyUploadQuality: q }),
@@ -1357,9 +1504,9 @@ export const useAppStore = create<AppState>()(
       },
 
       // Messaging
-      conversations: initialConversations,
-      activeConversationId: "conv-bot",
-      messages: initialMessages,
+      conversations: [],
+      activeConversationId: "",
+      messages: {},
       clearedConversations: {},
       typingStatus: {},
       setTypingStatus: (status) => set({ typingStatus: status }),
@@ -1668,6 +1815,7 @@ export const useAppStore = create<AppState>()(
           callLog: extra?.callLog,
           replyTo: extra?.replyTo,
           storyReply: extra?.storyReply,
+          storyMention: extra?.storyMention,
           createdAt: new Date().toISOString(),
           isRead: false,
         };
@@ -1675,6 +1823,8 @@ export const useAppStore = create<AppState>()(
         const lastPreview =
           msgType === "system"
             ? textContent
+            : extra?.storyMention
+            ? `Menyebut Anda dalam cerita`
             : extra?.storyReply
             ? `Membalas cerita: ${textContent || "Merespons cerita"}`
             : textContent ||
@@ -2003,7 +2153,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Notifications
-      notifications: initialNotifications,
+      notifications: [],
       addNotification: (notification) => {
         const newNotif: NotificationItem = {
           ...notification,
@@ -2240,6 +2390,7 @@ export const useAppStore = create<AppState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           sanitizePersistedStore(state);
+          state.setHydrated(true);
         }
       },
       partialize: (state) => ({
@@ -2248,6 +2399,8 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
         registeredUsers: state.registeredUsers,
+        savedAccounts: state.savedAccounts,
+        contactAliases: state.contactAliases,
         posts: state.posts,
         archivedPosts: state.archivedPosts,
         userBookmarks: state.userBookmarks,

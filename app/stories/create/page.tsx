@@ -22,7 +22,7 @@ import {
   Palette,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store/useAppStore";
-import { TextOverlay, StickerOverlay } from "@/lib/types";
+import { TextOverlay, StickerOverlay, UserProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { uploadMediaFile } from "@/lib/utils/mediaUpload";
 import {
@@ -93,6 +93,8 @@ export default function CreateStoryPage() {
     setStoryUploadQuality,
     registeredUsers,
     onlineUsers,
+    sendMessage,
+    getOrCreateConversation,
   } = useAppStore();
 
   const [mediaUrl, setMediaUrl] = useState<string | null>(null);
@@ -100,6 +102,13 @@ export default function CreateStoryPage() {
   const [videoDuration, setVideoDuration] = useState<number>(10);
   const [rawFile, setRawFile] = useState<File | null>(null);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
+
+  // Drag-and-drop state for overlays on canvas
+  const [activeDragItem, setActiveDragItem] = useState<{
+    id: string;
+    type: "text" | "sticker";
+  } | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
 
   // Quality setting: low | medium | high
   const [quality, setQuality] = useState<"low" | "medium" | "high">(storyUploadQuality || "high");
@@ -131,14 +140,21 @@ export default function CreateStoryPage() {
   // File picker ref
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
-  // Read draft image from Chat Lightbox if shared
+  // Read draft image from Chat Lightbox or Repost Story URL params
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const sharedMedia = sessionStorage.getItem("draft_story_media");
-      if (sharedMedia) {
-        setMediaUrl(sharedMedia);
+      const params = new URLSearchParams(window.location.search);
+      const repMedia = params.get("repostMedia");
+      if (repMedia) {
+        setMediaUrl(decodeURIComponent(repMedia));
         setMediaType("image");
-        sessionStorage.removeItem("draft_story_media");
+      } else {
+        const sharedMedia = sessionStorage.getItem("draft_story_media");
+        if (sharedMedia) {
+          setMediaUrl(sharedMedia);
+          setMediaType("image");
+          sessionStorage.removeItem("draft_story_media");
+        }
       }
     }
   }, []);
@@ -280,6 +296,45 @@ export default function CreateStoryPage() {
     setActiveTool(null);
   };
 
+  // Drag-and-drop pointer handlers for text & emoji on story canvas
+  const handlePointerDownItem = (
+    e: React.PointerEvent,
+    id: string,
+    type: "text" | "sticker"
+  ) => {
+    e.stopPropagation();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+    setActiveDragItem({ id, type });
+  };
+
+  const handlePointerMoveCanvas = (e: React.PointerEvent) => {
+    if (!activeDragItem || !canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const xPct = Math.max(10, Math.min(90, Math.round(((e.clientX - rect.left) / rect.width) * 100)));
+    const yPct = Math.max(10, Math.min(90, Math.round(((e.clientY - rect.top) / rect.height) * 100)));
+
+    if (activeDragItem.type === "text") {
+      setTextOverlays((prev) =>
+        prev.map((t) => (t.id === activeDragItem.id ? { ...t, position: { x: xPct, y: yPct } } : t))
+      );
+    } else {
+      setStickers((prev) =>
+        prev.map((s) => (s.id === activeDragItem.id ? { ...s, position: { x: xPct, y: yPct } } : s))
+      );
+    }
+  };
+
+  const handlePointerUpCanvas = (e: React.PointerEvent) => {
+    if (activeDragItem) {
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+      setActiveDragItem(null);
+    }
+  };
+
   // Publish story to global feed & LAN server (Mendukung hingga 100MB tanpa QuotaExceededError)
   const handlePublish = async () => {
     if (!mediaUrl || isPublishing) return;
@@ -306,6 +361,7 @@ export default function CreateStoryPage() {
       }
 
       const currentFilterObj = VISUAL_FILTERS.find((f) => f.id === selectedFilter);
+      const newStoryId = `story-${Date.now()}`;
 
       addStory({
         userId: currentUser.id,
@@ -325,6 +381,41 @@ export default function CreateStoryPage() {
         visualFilter: currentFilterObj && currentFilterObj.cssFilter !== "none" ? currentFilterObj.cssFilter : undefined,
         effectOverlay: selectedEffect !== "none" ? selectedEffect : undefined,
       });
+
+      // Module 11: Tag Story otomatis masuk ke DM lawan bicara dengan tombol Repost Story ala Instagram
+      if (taggedUsers && taggedUsers.length > 0) {
+        taggedUsers.forEach((tag) => {
+          const cleanUser = tag.replace(/^@/, "").toLowerCase();
+          const target =
+            registeredUsers.find((u) => u.username.toLowerCase() === cleanUser) ||
+            onlineUsers.find((u) => u.username.toLowerCase() === cleanUser);
+          if (target) {
+            const targetProfile: UserProfile = {
+              id: target.id,
+              name: target.name,
+              username: target.username,
+              email: target.email,
+              avatarUrl: target.avatarUrl,
+              bannerUrl: target.bannerUrl || "",
+              bio: target.bio || "",
+              isOnline: target.isOnline ?? true,
+              followersCount: target.followersCount || 0,
+              followingCount: target.followingCount || 0,
+              postsCount: target.postsCount || 0,
+            };
+            const convId = getOrCreateConversation(targetProfile);
+            sendMessage(convId, "", {
+              storyMention: {
+                storyId: newStoryId,
+                mediaUrl: finalMediaUrl,
+                mediaType,
+                authorUsername: currentUser.username,
+                authorName: currentUser.name,
+              },
+            });
+          }
+        });
+      }
 
       router.push("/");
     } catch (err: any) {
@@ -502,8 +593,13 @@ export default function CreateStoryPage() {
           </div>
 
           {mediaUrl ? (
-            /* Active Media Canvas */
-            <div className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden">
+            /* Active Media Canvas with Draggable Overlays */
+            <div
+              ref={canvasRef}
+              onPointerMove={handlePointerMoveCanvas}
+              onPointerUp={handlePointerUpCanvas}
+              className="relative w-full h-full bg-black flex items-center justify-center overflow-hidden touch-none"
+            >
               {/* Ambient Blurred Depth Backdrop */}
               <div className="absolute inset-0 overflow-hidden opacity-40 blur-2xl scale-125 pointer-events-none">
                 {mediaType === "video" ? (
@@ -535,7 +631,7 @@ export default function CreateStoryPage() {
                   style={{
                     filter: VISUAL_FILTERS.find((f) => f.id === selectedFilter)?.cssFilter || undefined,
                   }}
-                  className="relative z-10 max-w-full max-h-full object-contain transition-all duration-300"
+                  className="relative z-10 max-w-full max-h-full object-contain transition-all duration-300 pointer-events-none"
                 />
               ) : (
                 <img
@@ -544,7 +640,7 @@ export default function CreateStoryPage() {
                   style={{
                     filter: VISUAL_FILTERS.find((f) => f.id === selectedFilter)?.cssFilter || undefined,
                   }}
-                  className="relative z-10 max-w-full max-h-full object-contain transition-all duration-300"
+                  className="relative z-10 max-w-full max-h-full object-contain transition-all duration-300 pointer-events-none"
                 />
               )}
 
@@ -568,10 +664,11 @@ export default function CreateStoryPage() {
                 )}
               </div>
 
-              {/* Text Overlays Layer */}
+              {/* Draggable Text Overlays Layer */}
               {textOverlays.map((to) => (
                 <div
                   key={to.id}
+                  onPointerDown={(e) => handlePointerDownItem(e, to.id, "text")}
                   style={{
                     top: `${to.position.y}%`,
                     left: `${to.position.x}%`,
@@ -580,21 +677,28 @@ export default function CreateStoryPage() {
                     color: to.color,
                     fontFamily: to.fontFamily || "inherit",
                   }}
-                  className="absolute z-20 px-3.5 py-1.5 rounded-xl font-bold text-center text-sm shadow-md flex items-center gap-2 group cursor-pointer animate-in zoom-in-95 duration-150"
-                  onClick={() =>
-                    setTextOverlays((prev) => prev.filter((item) => item.id !== to.id))
-                  }
-                  title="Ketuk untuk menghapus teks"
+                  className="absolute z-20 px-3.5 py-1.5 rounded-xl font-bold text-center text-sm shadow-md flex items-center gap-2 group cursor-grab active:cursor-grabbing select-none"
+                  title="Geser teks ke mana saja, atau klik X untuk hapus"
                 >
                   <span>{to.text}</span>
-                  <X className="w-3.5 h-3.5 opacity-70 group-hover:opacity-100 transition-opacity" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTextOverlays((prev) => prev.filter((item) => item.id !== to.id));
+                    }}
+                    className="p-0.5 rounded-full hover:bg-black/30 text-white/80 hover:text-white transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
 
-              {/* Sticker Overlays Layer */}
+              {/* Draggable Sticker Overlays Layer */}
               {stickers.map((st) => (
                 <div
                   key={st.id}
+                  onPointerDown={(e) => handlePointerDownItem(e, st.id, "sticker")}
                   style={{
                     top: `${st.position.y}%`,
                     left: `${st.position.x}%`,
@@ -602,13 +706,20 @@ export default function CreateStoryPage() {
                     fontSize: `${st.size || 40}px`,
                     fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", sans-serif',
                   }}
-                  className="absolute z-20 cursor-pointer group animate-in zoom-in-95 duration-150"
-                  onClick={() =>
-                    setStickers((prev) => prev.filter((item) => item.id !== st.id))
-                  }
-                  title="Ketuk untuk menghapus stiker"
+                  className="absolute z-20 cursor-grab active:cursor-grabbing group select-none relative"
+                  title="Geser emoji ke mana saja, atau klik X untuk hapus"
                 >
                   <span>{st.emoji}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setStickers((prev) => prev.filter((item) => item.id !== st.id));
+                    }}
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
                 </div>
               ))}
 

@@ -438,11 +438,11 @@ function ExploreContent() {
                       }
 
                       return (
-                        <div className="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 bg-black/5 dark:bg-black/40">
+                        <div className="rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800/80 bg-slate-900/5 dark:bg-black/60 flex items-center justify-center max-h-[520px]">
                           <MediaRenderer
                             src={mediaSrc}
                             alt="Media postingan"
-                            className="w-full max-h-56 object-cover"
+                            className="w-full max-h-[520px] object-contain rounded-2xl"
                           />
                         </div>
                       );

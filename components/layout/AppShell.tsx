@@ -19,7 +19,7 @@ interface AppShellProps {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { theme, isMobileChatOpen, isAuthenticated } = useAppStore();
+  const { theme, isMobileChatOpen, isAuthenticated, isHydrated } = useAppStore();
   const [mounted, setMounted] = useState(false);
 
   // Real-Time LAN Server Synchronization (Laptop <-> HP)
@@ -35,12 +35,12 @@ export function AppShell({ children }: AppShellProps) {
     }
   }, [theme]);
 
-  // Auth Protection: Jika belum login dan membuka halaman selain /auth, arahkan otomatis ke /auth
+  // Auth Protection: Jika sudah terhidrasi tapi belum login dan membuka halaman selain /auth, arahkan ke /auth
   useEffect(() => {
-    if (mounted && !isAuthenticated && pathname !== "/auth") {
+    if (mounted && isHydrated && !isAuthenticated && pathname !== "/auth") {
       router.replace("/auth");
     }
-  }, [mounted, isAuthenticated, pathname, router]);
+  }, [mounted, isHydrated, isAuthenticated, pathname, router]);
 
   // If on /auth, /stories/create, /post/create, or /call page, render plain without app shell sidebars
   const isAuthPage = pathname === "/auth";
@@ -56,8 +56,8 @@ export function AppShell({ children }: AppShellProps) {
     );
   }
 
-  // Tampilkan loading spinner bersih saat mengalihkan pengunjung yang belum login
-  if (mounted && !isAuthenticated) {
+  // Tampilkan loading screen bersih saat belum selesai hidrasi atau saat redirect
+  if (!mounted || !isHydrated || !isAuthenticated) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center bg-white dark:bg-[#0B0F17]">
         <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
@@ -66,8 +66,8 @@ export function AppShell({ children }: AppShellProps) {
   }
 
   // On /messages and /settings pages on desktop, right sidebar widget is suppressed so content gets full width
-  const isMessagesPage = pathname === "/messages";
-  const isSettingsPage = pathname === "/settings";
+  const isMessagesPage = pathname?.startsWith("/messages");
+  const isSettingsPage = pathname?.startsWith("/settings");
 
   return (
     <div className="h-full h-[100dvh] max-h-[100dvh] w-full flex-1 bg-white dark:bg-[#0B0F17] text-[#0F172A] dark:text-slate-100 flex overflow-hidden">

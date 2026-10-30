@@ -20,6 +20,7 @@ import { StoryItem } from "@/lib/types";
 import { formatTimestamp, cn } from "@/lib/utils";
 import { StoryViewersDrawer } from "./StoryViewersDrawer";
 import { StoryEffectsOverlay } from "./StoryEffectsOverlay";
+import { ShareSheetModal } from "@/components/share/ShareSheetModal";
 
 interface StoryViewerProps {
   initialStoryId?: string;
@@ -936,76 +937,18 @@ export function StoryViewer({ initialStoryId, onClose }: StoryViewerProps) {
           )}
         </div>
 
-        {/* Share Dialog Drawer */}
-        {isShareOpen && (
-          <div
-            role="dialog"
-            aria-label="Bagikan cerita"
-            className="absolute inset-0 z-40 bg-black/80 backdrop-blur-md p-5 flex flex-col justify-end animate-in fade-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl p-4 space-y-3.5 text-white shadow-2xl">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="font-bold text-sm">Bagikan Cerita</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsShareOpen(false);
-                    setIsPaused(false);
-                  }}
-                  className="p-1 rounded-full text-slate-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Action 1: Copy Link */}
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 transition-colors text-left"
-              >
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0">
-                  <Copy className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold">Salin Tautan Cerita</div>
-                  <div className="text-[10px] text-slate-400">Salin link untuk dibagikan di luar aplikasi</div>
-                </div>
-              </button>
-
-              {/* Action 2: Direct Messages List */}
-              <div>
-                <span className="text-[11px] font-semibold text-slate-400 block mb-2">
-                  Kirim ke Obrolan Pesan:
-                </span>
-                <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                  {conversations.slice(0, 4).map((conv) => (
-                    <button
-                      key={conv.id}
-                      type="button"
-                      onClick={() => handleShareToConversation(conv.id)}
-                      className="w-full flex items-center justify-between p-2 rounded-xl hover:bg-slate-800 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={conv.participant.avatarUrl}
-                          alt={conv.participant.name}
-                          className="w-7 h-7 rounded-full object-cover"
-                        />
-                        <span className="text-xs font-medium truncate max-w-[170px]">
-                          {conv.participant.name}
-                        </span>
-                      </div>
-                      <span className="text-[10px] px-2.5 py-1 rounded-lg bg-blue-600 text-white font-bold">
-                        Kirim
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Share Dialog Sheet with WhatsApp, Instagram, Copy Link & DM */}
+        {currentStory && (
+          <ShareSheetModal
+            isOpen={isShareOpen}
+            onClose={() => {
+              setIsShareOpen(false);
+              setIsPaused(false);
+            }}
+            title={`Cerita dari ${currentStory.user.name}`}
+            url={typeof window !== "undefined" ? `${window.location.origin}/feed` : "https://connectreal-theta.vercel.app"}
+            description={`Lihat cerita terbaru dari @${currentStory.user.username} di ConnectReal!`}
+          />
         )}
       </div>
 

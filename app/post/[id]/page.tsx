@@ -286,59 +286,6 @@ export default function PostDetailPage() {
           </div>
         )}
 
-        {/* Beat-Synced Music Player & Karaoke Lyrics */}
-        {post.musicTrack && (
-          <div className="my-3 p-3.5 rounded-2xl bg-gradient-to-r from-blue-900/40 via-indigo-900/30 to-purple-900/40 border border-blue-500/30 text-white space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={post.musicTrack.coverUrl}
-                  alt={post.musicTrack.title}
-                  className={cn(
-                    "w-11 h-11 rounded-xl object-cover ring-2 ring-blue-400/40 shrink-0",
-                    isPlayingMusic && "animate-spin [animation-duration:8s]"
-                  )}
-                />
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <Music className="w-3.5 h-3.5 text-blue-300 shrink-0" />
-                    <h4 className="font-bold text-xs sm:text-sm text-white truncate">
-                      {post.musicTrack.title}
-                    </h4>
-                  </div>
-                  <p className="text-[11px] text-blue-200/80 truncate">
-                    {post.musicTrack.artist}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => togglePlayMusic(post.musicTrack!.audioUrl)}
-                className="w-10 h-10 rounded-full bg-white text-blue-900 flex items-center justify-center shrink-0 shadow-md hover:scale-105 active:scale-95 transition-transform"
-                aria-label={isPlayingMusic ? "Jeda musik" : "Putar musik"}
-              >
-                {isPlayingMusic ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-              </button>
-            </div>
-
-            {/* Beat-Synced Lyric Line Display */}
-            {post.musicTrack.lyrics && post.musicTrack.lyrics.length > 0 && (
-              <div className="px-3 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/10 text-center">
-                <p className="text-xs font-bold text-amber-300 animate-pulse">
-                  {(() => {
-                    const active = post.musicTrack.lyrics
-                      ?.slice()
-                      .reverse()
-                      .find((l) => currentAudioTime >= l.time);
-                    return active?.text || "♪ Dengarkan alunan musik ♪";
-                  })()}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* Timestamp */}
         <div className="py-2.5 text-xs text-slate-500 dark:text-slate-400 border-b border-[#E2E8F0] dark:border-slate-800">
           {formatTimestamp(post.createdAt)} • ConnectReal Web
