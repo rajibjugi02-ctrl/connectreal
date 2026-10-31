@@ -4,7 +4,7 @@ export const dynamic = "force-dynamic";
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle, X, HelpCircle, Sparkles } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle, X, HelpCircle, Sparkles, Heart, CheckCheck, MessageSquare } from "lucide-react";
 import { useAppStore } from "@/lib/store/useAppStore";
 import { LoginWelcomeTransition } from "@/components/auth/LoginWelcomeTransition";
 
@@ -180,26 +180,22 @@ export default function AuthPage() {
           onComplete={() => router.push("/")}
         />
       )}
-      {/* Kolom Kiri: Branding & Visual Showcase (Desktop Midnight Slate + Aurora Glow + Waving Robot Character) */}
+      {/* Kolom Kiri: Branding & Visual Showcase (Desktop Midnight Slate + Aurora Glow + Glassmorphic Live Preview) */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 p-12 bg-[#0F172A] border-r border-slate-800 text-slate-100 relative overflow-hidden select-none">
         <style>{`
-          @keyframes waveArm {
-            0%, 100% { transform: rotate(0deg); }
-            20% { transform: rotate(16deg); }
-            40% { transform: rotate(-8deg); }
-            60% { transform: rotate(14deg); }
-            80% { transform: rotate(-4deg); }
-          }
-          .animate-waving-arm {
-            transform-origin: 140px 105px;
-            animation: waveArm 2.2s ease-in-out infinite;
-          }
           @keyframes auroraPulse {
             0%, 100% { transform: scale(1) translate(0px, 0px); opacity: 0.45; }
             50% { transform: scale(1.18) translate(15px, -12px); opacity: 0.75; }
           }
           .animate-aurora-glow {
             animation: auroraPulse 8s ease-in-out infinite;
+          }
+          @keyframes floatGentle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+          }
+          .animate-float-gentle {
+            animation: floatGentle 5s ease-in-out infinite;
           }
         `}</style>
 
@@ -218,73 +214,88 @@ export default function AuthPage() {
           </span>
         </div>
 
-        {/* Visual Showcase: Modern Robot Character Waving Hand */}
-        <div className="relative z-10 flex flex-col items-center justify-center py-6">
-          <div className="relative flex items-center justify-center">
-            {/* Robot Floating Halo */}
-            <div className="absolute inset-0 bg-gradient-to-t from-sky-500/20 to-blue-600/10 rounded-full blur-2xl" />
-            
-            {/* Custom SVG Modern Robot with Waving Arm */}
-            <svg
-              width="220"
-              height="220"
-              viewBox="0 0 220 220"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              className="relative filter drop-shadow-[0_15px_25px_rgba(14,165,233,0.3)] animate-[float_4s_ease-in-out_infinite]"
-            >
-              {/* Antenna */}
-              <line x1="110" y1="28" x2="110" y2="48" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
-              <circle cx="110" cy="24" r="5" fill="#38BDF8" className="animate-pulse" />
+        {/* Visual Showcase: High-End Glassmorphic Live Preview Cards */}
+        <div className="relative z-10 flex flex-col items-center justify-center py-6 w-full max-w-md mx-auto">
+          {/* Ambient Glow behind cards */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-sky-500/15 to-indigo-600/20 rounded-3xl blur-2xl" />
 
-              {/* Ears / Side Audio Nodes */}
-              <rect x="58" y="70" width="8" height="24" rx="4" fill="#334155" stroke="#38BDF8" strokeWidth="1.5" />
-              <rect x="154" y="70" width="8" height="24" rx="4" fill="#334155" stroke="#38BDF8" strokeWidth="1.5" />
-
-              {/* Head */}
-              <rect x="66" y="48" width="88" height="66" rx="22" fill="#1E293B" stroke="#0EA5E9" strokeWidth="2.5" />
-              
-              {/* Visor Screen */}
-              <rect x="76" y="58" width="68" height="42" rx="14" fill="#0B132B" stroke="#38BDF8" strokeWidth="1.5" />
-              
-              {/* Smiling Happy Cyber Eyes */}
-              <path d="M 88 77 Q 94 70 100 77" stroke="#38BDF8" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-              <path d="M 120 77 Q 126 70 132 77" stroke="#38BDF8" strokeWidth="3.5" strokeLinecap="round" fill="none" />
-              
-              {/* Friendly Blushing Cheeks */}
-              <circle cx="86" cy="88" r="3" fill="#F43F5E" fillOpacity="0.6" />
-              <circle cx="134" cy="88" r="3" fill="#F43F5E" fillOpacity="0.6" />
-
-              {/* Neck */}
-              <rect x="100" y="114" width="20" height="10" rx="3" fill="#334155" />
-
-              {/* Body Torso */}
-              <rect x="74" y="124" width="72" height="64" rx="18" fill="#1E293B" stroke="#0EA5E9" strokeWidth="2.5" />
-              {/* Chest Core Badge */}
-              <circle cx="110" cy="152" r="14" fill="#0F172A" stroke="#38BDF8" strokeWidth="2" />
-              <path d="M 106 152 L 110 146 L 114 152 L 110 158 Z" fill="#38BDF8" />
-
-              {/* Left Arm (Relaxed) */}
-              <path d="M 74 135 C 55 145 52 170 60 185" stroke="#0EA5E9" strokeWidth="6" strokeLinecap="round" />
-              <circle cx="61" cy="186" r="6" fill="#38BDF8" />
-
-              {/* Right Arm (WAVING SAY HI!) */}
-              <g className="animate-waving-arm">
-                <path d="M 146 135 C 165 125 178 95 168 70" stroke="#0EA5E9" strokeWidth="6" strokeLinecap="round" />
-                {/* Waving Hand Palm */}
-                <circle cx="168" cy="68" r="8" fill="#38BDF8" />
-                {/* Waving Fingers */}
-                <path d="M 164 62 L 163 54" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
-                <path d="M 170 62 L 171 52" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
-                <path d="M 175 64 L 179 56" stroke="#38BDF8" strokeWidth="3" strokeLinecap="round" />
-              </g>
-            </svg>
+          {/* Floating Live Notification Pill */}
+          <div className="relative w-full -mb-3 z-20 flex justify-end px-4 animate-float-gentle">
+            <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-slate-900/90 backdrop-blur-xl border border-rose-500/30 shadow-xl shadow-rose-950/20 text-xs">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 text-white">
+                <Heart className="w-3 h-3 fill-white" />
+              </span>
+              <span className="text-slate-200 font-medium text-[11px]">
+                <strong className="text-white font-semibold">Sarah Jenkins</strong> menyukai foto Anda
+              </span>
+              <span className="text-[10px] text-slate-400">Barusan</span>
+            </div>
           </div>
 
-          {/* Greeting Badge */}
-          <div className="mt-4 px-4 py-1.5 rounded-full bg-slate-800/90 border border-sky-500/40 text-xs font-bold text-sky-300 flex items-center gap-2 shadow-lg shadow-sky-500/10">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>Hai, Selamat Datang di ConnectReal!</span>
+          {/* Main Glassmorphic Chat Preview Card */}
+          <div className="relative w-full rounded-2xl bg-slate-900/80 backdrop-blur-2xl border border-slate-700/60 p-4 shadow-2xl space-y-3.5">
+            {/* Card Header: Online Contact Bar */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 flex items-center justify-center text-white text-xs font-bold ring-2 ring-sky-500/40">
+                    AL
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-slate-900" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Alex Leonardo
+                    <span className="px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-sky-500/20 text-sky-300 border border-sky-500/30">
+                      Online
+                    </span>
+                  </h4>
+                  <p className="text-[10px] text-slate-400">sedang aktif sekarang</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                0ms Sync
+              </div>
+            </div>
+
+            {/* Chat Bubbles Simulation */}
+            <div className="space-y-2.5 text-xs">
+              {/* Incoming Bubble */}
+              <div className="flex items-start gap-2 max-w-[85%]">
+                <div className="w-6 h-6 rounded-full bg-slate-800 text-[10px] font-bold text-slate-300 flex items-center justify-center shrink-0">
+                  AL
+                </div>
+                <div className="p-3 rounded-2xl rounded-tl-sm bg-slate-800/90 border border-slate-700/60 text-slate-200 text-xs shadow-xs">
+                  <p className="leading-snug">Hei! Linimasa multi-foto ConnectReal lancar banget ya 🔥</p>
+                  <span className="block text-[9px] text-slate-400 text-right mt-1">14:30</span>
+                </div>
+              </div>
+
+              {/* Outgoing Bubble */}
+              <div className="flex items-end justify-end gap-1.5">
+                <div className="p-3 rounded-2xl rounded-tr-sm bg-gradient-to-tr from-blue-600 to-sky-600 text-white text-xs shadow-md shadow-blue-500/20 max-w-[85%]">
+                  <p className="leading-snug">Iya, foto portrait 9:16 tampil utuh dan carousel-nya halus banget 📸✨</p>
+                  <div className="flex items-center justify-end gap-1 text-[9px] text-sky-200 mt-1">
+                    <span>14:31</span>
+                    <CheckCheck className="w-3 h-3 text-sky-200" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Mini Active Group Pill */}
+            <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+              <div className="flex items-center gap-2">
+                <div className="flex -space-x-1.5">
+                  <div className="w-5 h-5 rounded-full bg-purple-500 text-[8px] font-bold text-white flex items-center justify-center ring-1 ring-slate-900">R</div>
+                  <div className="w-5 h-5 rounded-full bg-emerald-500 text-[8px] font-bold text-white flex items-center justify-center ring-1 ring-slate-900">M</div>
+                  <div className="w-5 h-5 rounded-full bg-amber-500 text-[8px] font-bold text-white flex items-center justify-center ring-1 ring-slate-900">+4</div>
+                </div>
+                <span className="text-slate-300 font-medium">Design Community</span>
+              </div>
+              <span className="text-sky-400 font-semibold text-[10px]">3 pesan baru</span>
+            </div>
           </div>
         </div>
 

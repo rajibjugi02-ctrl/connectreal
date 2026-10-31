@@ -26,6 +26,7 @@ export default function NotificationsPage() {
     registeredUsers,
     onlineUsers,
     posts,
+    followingUserIds,
     toggleFollowUser,
     getOrCreateConversation,
     setActiveConversationId,
@@ -35,22 +36,28 @@ export default function NotificationsPage() {
 
   const [activeTab, setActiveTab] = useState<"activity" | "followers">("activity");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [optimisticFollows, setOptimisticFollows] = useState<Record<string, boolean>>({});
 
   const showToast = (text: string) => {
     setToastMessage(text);
     setTimeout(() => setToastMessage(null), 2500);
   };
 
-  // Follow back action
-  const handleFollowBack = (item: NotificationItem, targetUser: any) => {
+  // Follow back action with instant toggle
+  const handleFollowBack = (targetUser: any) => {
     if (!targetUser) return;
     const identifier = targetUser.id || targetUser.username;
+    const isCurrentlyFoll =
+      followingUserIds?.includes(targetUser.id) ||
+      followingUserIds?.includes(targetUser.username?.toLowerCase()) ||
+      Boolean(targetUser.isFollowing);
 
-    setOptimisticFollows((prev) => ({ ...prev, [item.id]: true, [identifier]: true }));
     toggleFollowUser(identifier);
 
-    showToast(`Berhasil mengikuti balik @${targetUser.username}`);
+    if (!isCurrentlyFoll) {
+      showToast(`Mulai mengikuti balik @${targetUser.username}`);
+    } else {
+      showToast(`Berhenti mengikuti @${targetUser.username}`);
+    }
   };
 
   // Open Chat action
@@ -299,10 +306,9 @@ export default function NotificationsPage() {
                   : null);
 
               const isFollowingTarget = Boolean(
-                optimisticFollows[item.id] ||
-                  (targetUser?.id && optimisticFollows[targetUser.id]) ||
-                  (targetUser?.username && optimisticFollows[targetUser.username]) ||
-                  (targetUser && (targetUser as any).isFollowing)
+                (targetUser?.id && followingUserIds?.includes(targetUser.id)) ||
+                (targetUser?.username && followingUserIds?.includes(targetUser.username.toLowerCase())) ||
+                (targetUser && (targetUser as any).isFollowing)
               );
 
               return (
@@ -359,7 +365,7 @@ export default function NotificationsPage() {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleFollowBack(item, targetUser);
+                        handleFollowBack(targetUser);
                       }}
                       className={cn(
                         "px-3.5 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 shadow-xs",

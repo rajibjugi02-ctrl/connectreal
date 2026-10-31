@@ -142,8 +142,8 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      {/* Banner (Foto atau Video dengan Smooth Blur Blend di Tepi Bawah) */}
-      <div className="h-44 sm:h-56 w-full bg-slate-900 relative overflow-hidden">
+      {/* Banner (Foto atau Video dengan Batas Tajam & Jernih) */}
+      <div className="h-44 sm:h-56 w-full bg-slate-900 relative overflow-hidden border-b border-slate-200 dark:border-slate-800">
         {resolvedBannerUrl || currentUser.bannerUrl ? (
           isVideoUrl(currentUser.bannerUrl, currentUser.bannerType) ? (
             <video
@@ -164,8 +164,6 @@ export default function ProfilePage() {
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-blue-900 to-indigo-950" />
         )}
-        {/* Smooth Gradient Mask & Backdrop Blur Blend pada Batas Bawah Banner */}
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white dark:from-slate-900 via-white/40 dark:via-slate-900/40 to-transparent backdrop-blur-[2px] pointer-events-none" />
       </div>
 
       {/* Profile Header Details */}

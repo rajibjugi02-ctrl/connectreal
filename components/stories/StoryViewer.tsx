@@ -19,7 +19,6 @@ import { useAppStore } from "@/lib/store/useAppStore";
 import { StoryItem } from "@/lib/types";
 import { formatTimestamp, cn } from "@/lib/utils";
 import { StoryViewersDrawer } from "./StoryViewersDrawer";
-import { StoryEffectsOverlay } from "./StoryEffectsOverlay";
 import { ShareSheetModal } from "@/components/share/ShareSheetModal";
 
 interface StoryViewerProps {
@@ -737,39 +736,41 @@ export function StoryViewer({ initialStoryId, onClose }: StoryViewerProps) {
               onEnded={() => {
                 handleNext();
               }}
-              style={{ filter: currentStory.visualFilter || undefined }}
               className="relative z-10 max-w-full max-h-full object-contain transition-all"
             />
           ) : (
             <img
               src={currentStory.mediaUrl}
               alt="Story"
-              style={{ filter: currentStory.visualFilter || undefined }}
               className="relative z-10 max-w-full max-h-full object-contain transition-all"
             />
           )}
 
-          {/* Real-time Visual Effects Overlay (Sparkles, VHS, Bokeh, Film Grain) */}
-          <StoryEffectsOverlay effect={currentStory.effectOverlay} />
-
           {/* Text Overlays Layer */}
-          {currentStory.textOverlays?.map((to) => (
-            <div
-              key={to.id}
-              style={{
-                top: `${to.position.y}%`,
-                left: `${to.position.x}%`,
-                transform: "translate(-50%, -50%)",
-                backgroundColor: to.bgColor || "transparent",
-                color: to.color,
-                fontSize: `${to.fontSize || 17}px`,
-                fontFamily: to.fontFamily || "inherit",
-              }}
-              className="absolute z-20 px-3.5 py-1.5 rounded-xl font-bold text-center pointer-events-none drop-shadow-md max-w-[85%] animate-in zoom-in-95 duration-200"
-            >
-              {to.text}
-            </div>
-          ))}
+          {currentStory.textOverlays?.map((to) => {
+            const bgStyle = to.bgStyle || (to.bgColor === "transparent" ? "transparent" : "black");
+            return (
+              <div
+                key={to.id}
+                style={{
+                  top: `${to.position.y}%`,
+                  left: `${to.position.x}%`,
+                  transform: "translate(-50%, -50%)",
+                  color: bgStyle === "white" ? "#0F172A" : (to.color || "#FFFFFF"),
+                  fontSize: `${to.fontSize || 18}px`,
+                  fontFamily: to.fontFamily || "inherit",
+                }}
+                className={cn(
+                  "absolute z-20 px-3.5 py-1.5 rounded-xl font-bold text-center pointer-events-none max-w-[85%] animate-in zoom-in-95 duration-200",
+                  bgStyle === "black" && "bg-black/75 text-white backdrop-blur-xs border border-white/20 shadow-lg",
+                  bgStyle === "white" && "bg-white/95 text-slate-900 shadow-xl border border-slate-200",
+                  bgStyle === "transparent" && "bg-transparent text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] font-extrabold"
+                )}
+              >
+                {to.text}
+              </div>
+            );
+          })}
 
           {/* Sticker Overlays Layer */}
           {currentStory.stickers?.map((st) => (
@@ -792,6 +793,10 @@ export function StoryViewer({ initialStoryId, onClose }: StoryViewerProps) {
           {currentStory.taggedUsers?.map((tag) => {
             const cleanTag = tag.replace(/^@/, "");
             const pos = currentStory.tagPositions?.[cleanTag] || currentStory.tagPositions?.[tag] || { x: 50, y: 70 };
+            const styleObj = currentStory.tagStyles?.[cleanTag] || currentStory.tagStyles?.[tag] || { bgStyle: "black", fontSize: 13 };
+            const bgStyle = styleObj.bgStyle || "black";
+            const fontSize = styleObj.fontSize || 13;
+
             return (
               <button
                 key={tag}
@@ -805,10 +810,16 @@ export function StoryViewer({ initialStoryId, onClose }: StoryViewerProps) {
                   top: `${pos.y}%`,
                   left: `${pos.x}%`,
                   transform: "translate(-50%, -50%)",
+                  fontSize: `${fontSize}px`,
                 }}
-                className="absolute z-25 px-3 py-1.5 rounded-full bg-black/75 hover:bg-black/90 text-white font-bold text-xs flex items-center gap-1.5 shadow-xl border border-white/20 active:scale-95 transition-all pointer-events-auto group/tag"
+                className={cn(
+                  "absolute z-25 px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-xl active:scale-95 transition-all pointer-events-auto group/tag",
+                  bgStyle === "black" && "bg-black/75 hover:bg-black/90 text-white border border-white/20",
+                  bgStyle === "white" && "bg-white/95 hover:bg-white text-slate-900 border border-slate-200 shadow-xl",
+                  bgStyle === "transparent" && "bg-transparent text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] font-extrabold"
+                )}
               >
-                <span className="text-sky-400 font-extrabold group-hover/tag:scale-110 transition-transform">@</span>
+                <span className={cn(bgStyle === "white" ? "text-blue-600" : "text-sky-400", "font-extrabold group-hover/tag:scale-110 transition-transform")}>@</span>
                 <span className="group-hover/tag:underline">{cleanTag}</span>
               </button>
             );

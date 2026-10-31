@@ -697,8 +697,6 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
         showToast(`Memproses ${files.length} foto...`);
         const processedUrls = await Promise.all(
           files.map(async (file) => {
-            const uploaded = await uploadMediaFile(file, file.name);
-            if (uploaded) return uploaded;
             return compressImageFile(file);
           })
         );
@@ -712,8 +710,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
         showToast(`${files.length} foto berhasil dikirim`);
       } else {
         const file = files[0];
-        const uploadedUrl = await uploadMediaFile(file, file.name);
-        const finalUrl = uploadedUrl || (await compressImageFile(file));
+        const finalUrl = await compressImageFile(file);
         const formattedSize =
           file.size > 1024 * 1024
             ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
@@ -750,8 +747,6 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
       showToast(`Memproses ${files.length} foto...`);
       const processedUrls = await Promise.all(
         files.map(async (file) => {
-          const uploaded = await uploadMediaFile(file, file.name);
-          if (uploaded) return uploaded;
           return compressImageFile(file);
         })
       );
@@ -773,8 +768,7 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
           : `${Math.round(file.size / 1024)} KB`;
 
       if (isImageFile(file)) {
-        const uploadedUrl = await uploadMediaFile(file, file.name);
-        const finalUrl = uploadedUrl || (await compressImageFile(file));
+        const finalUrl = await compressImageFile(file);
         sendMessage(activeConversationId, "", {
           type: "image",
           mediaUrl: finalUrl,
@@ -782,27 +776,17 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
           fileSize: formattedSize,
         });
       } else {
-        const uploadedUrl = await uploadMediaFile(file, file.name);
-        if (uploadedUrl) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = event.target?.result as string;
           sendMessage(activeConversationId, "", {
             type: "file",
-            mediaUrl: uploadedUrl,
+            mediaUrl: dataUrl,
             fileName: file.name,
             fileSize: formattedSize,
           });
-        } else {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const dataUrl = event.target?.result as string;
-            sendMessage(activeConversationId, "", {
-              type: "file",
-              mediaUrl: dataUrl,
-              fileName: file.name,
-              fileSize: formattedSize,
-            });
-          };
-          reader.readAsDataURL(file);
-        }
+        };
+        reader.readAsDataURL(file);
       }
     }
   };
@@ -987,31 +971,18 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
     if (isSimulatedRecordingRef.current || !mediaRecorderRef.current) {
       isSimulatedRecordingRef.current = false;
       const wavBlob = createSyntheticVoiceNoteBlob(duration);
-      const filename = `vn_${Date.now()}.wav`;
-
-      const uploadedUrl = await uploadMediaFile(wavBlob, filename);
-      if (uploadedUrl) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Audio = event.target?.result as string;
         sendMessage(activeConversationId, "", {
           type: "audio",
-          mediaUrl: uploadedUrl,
+          mediaUrl: base64Audio,
           audioDuration: duration,
           fileName: "Pesan Suara",
         });
         showToast("Pesan suara terkirim");
-      } else {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const base64Audio = event.target?.result as string;
-          sendMessage(activeConversationId, "", {
-            type: "audio",
-            mediaUrl: base64Audio,
-            audioDuration: duration,
-            fileName: "Pesan Suara",
-          });
-          showToast("Pesan suara terkirim");
-        };
-        reader.readAsDataURL(wavBlob);
-      }
+      };
+      reader.readAsDataURL(wavBlob);
       return;
     }
 
@@ -1019,32 +990,18 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
     rec.onstop = async () => {
       const mime = audioMimeTypeRef.current || "audio/webm";
       const audioBlob = new Blob(audioChunksRef.current, { type: mime });
-      const ext = mime.includes("quicktime") ? ".mov" : mime.includes("mp4") ? ".mp4" : ".webm";
-      const filename = `vn_${Date.now()}${ext}`;
-
-      const uploadedUrl = await uploadMediaFile(audioBlob, filename);
-      if (uploadedUrl) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64Audio = event.target?.result as string;
         sendMessage(activeConversationId, "", {
           type: "audio",
-          mediaUrl: uploadedUrl,
+          mediaUrl: base64Audio,
           audioDuration: duration,
           fileName: "Pesan Suara",
         });
         showToast("Pesan suara terkirim");
-      } else {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          const base64Audio = event.target?.result as string;
-          sendMessage(activeConversationId, "", {
-            type: "audio",
-            mediaUrl: base64Audio,
-            audioDuration: duration,
-            fileName: "Pesan Suara",
-          });
-          showToast("Pesan suara terkirim");
-        };
-        reader.readAsDataURL(audioBlob);
-      }
+      };
+      reader.readAsDataURL(audioBlob);
 
       rec.stream?.getTracks().forEach((track) => track.stop());
       mediaRecorderRef.current = null;
@@ -1953,8 +1910,8 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                       </div>
                     )}
 
-                    {/* 1. IMAGE BUBBLE: Multiple Images (CardCornerFan ala @amicro/card-corner-fan) atau Single Image */}
-                    {msg.type === "image" && (msg.mediaUrls?.length || msg.mediaUrl) ? (
+                    {/* 1. IMAGE BUBBLE: Multiple Images (CardCornerFan) atau Single Image */}
+                    {(msg.type === "image" || msg.attachment?.type === "image" || (msg.mediaUrl && !msg.mediaUrl.startsWith("data:audio/")) || (msg.attachment?.url && !msg.attachment.url.startsWith("data:audio/")) || (msg.content === "Foto" && (msg.mediaUrl || msg.attachment?.url))) ? (
                       msg.mediaUrls && msg.mediaUrls.length > 1 ? (
                         <div className="space-y-1.5">
                           <CardCornerFan
@@ -1984,14 +1941,14 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                       ) : (
                         <div className="space-y-1.5">
                           <img
-                            src={msg.mediaUrl || msg.mediaUrls?.[0]}
+                            src={msg.mediaUrl || msg.mediaUrls?.[0] || msg.attachment?.url}
                             alt="Gambar terkirim"
                             className="rounded-xl max-h-72 w-full object-cover cursor-pointer hover:opacity-95 transition-opacity"
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               setLightboxImage({
-                                url: (msg.mediaUrl || msg.mediaUrls?.[0])!,
+                                url: (msg.mediaUrl || msg.mediaUrls?.[0] || msg.attachment?.url)!,
                                 fileName: msg.fileName || `connectreal-${msg.id}.png`,
                               });
                               setIsLightboxZoomed(false);
@@ -2003,11 +1960,11 @@ export function ChatWindow({ onBack }: ChatWindowProps) {
                         </div>
                       )
                     ) : /* 2. AUDIO / VOICE NOTE BUBBLE (Ala WhatsApp) - Responsif di mobile */
-                    msg.type === "audio" || (msg.mediaUrl && (msg.mediaUrl.startsWith("data:audio/") || msg.mediaUrl.endsWith(".m4a") || msg.mediaUrl.endsWith(".mp3") || msg.mediaUrl.endsWith(".aac") || msg.mediaUrl.endsWith(".wav") || msg.mediaUrl.endsWith(".webm") || msg.mediaUrl.endsWith(".ogg"))) ? (
+                    msg.type === "audio" || msg.attachment?.type === "audio" || (msg.mediaUrl && (msg.mediaUrl.startsWith("data:audio/") || msg.mediaUrl.endsWith(".m4a") || msg.mediaUrl.endsWith(".mp3") || msg.mediaUrl.endsWith(".aac") || msg.mediaUrl.endsWith(".wav") || msg.mediaUrl.endsWith(".webm") || msg.mediaUrl.endsWith(".ogg"))) || (msg.attachment?.url && (msg.attachment.url.startsWith("data:audio/") || msg.attachment.url.endsWith(".m4a") || msg.attachment.url.endsWith(".mp3") || msg.attachment.url.endsWith(".aac") || msg.attachment.url.endsWith(".wav") || msg.attachment.url.endsWith(".webm") || msg.attachment.url.endsWith(".ogg"))) ? (
                       <div className="flex items-center gap-2 sm:gap-3 py-1 px-0.5 w-full max-w-full min-w-0">
                         <button
                           type="button"
-                          onClick={() => togglePlayAudio(msg.id, msg.mediaUrl)}
+                          onClick={() => togglePlayAudio(msg.id, msg.mediaUrl || msg.attachment?.url)}
                           aria-label={playingAudioId === msg.id ? "Jeda pesan suara" : "Putar pesan suara"}
                           className={cn(
                             "w-8.5 h-8.5 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 active:scale-95 transition-all shadow-md",

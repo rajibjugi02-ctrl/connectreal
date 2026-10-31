@@ -59,7 +59,7 @@ export function LoginWelcomeTransition({ onComplete }: LoginWelcomeTransitionPro
         aria-hidden="true"
       />
 
-      {/* Cyber Core Geometric Droid Character */}
+      {/* Minimalist Brand Emblem */}
       <div
         className={cn(
           "relative flex flex-col items-center will-change-transform transition-all duration-500 ease-out",
@@ -68,150 +68,13 @@ export function LoginWelcomeTransition({ onComplete }: LoginWelcomeTransitionPro
             : "translate-y-0 scale-100 opacity-100"
         )}
       >
-        {/* Floating Wrap */}
-        <div className="relative animate-[float_3.5s_ease-in-out_infinite]">
-          {/* Pure Inline Vector SVG */}
-          <svg
-            width="120"
-            height="120"
-            viewBox="0 0 120 120"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="w-24 h-24 sm:w-28 sm:h-28"
-          >
-            {/* Rotating Orbit Gyro Ring */}
-            <g className="origin-center animate-[spin_10s_linear_infinite]">
-              <ellipse
-                cx="60"
-                cy="60"
-                rx="52"
-                ry="22"
-                fill="none"
-                stroke="#38BDF8"
-                strokeWidth="1.5"
-                strokeDasharray="4 6"
-                strokeOpacity="0.35"
-                transform="rotate(-25 60 60)"
-              />
-              <circle
-                cx="14"
-                cy="42"
-                r="2.5"
-                fill="#38BDF8"
-                className="animate-pulse"
-              />
-            </g>
+        {/* Ambient Halo */}
+        <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-2xl pointer-events-none" />
 
-            {/* Droid Chassis Drop Shadow In Dark Surface */}
-            <defs>
-              <filter id="coreGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
-
-            {/* Top Precision Signal Node */}
-            <line
-              x1="60"
-              y1="34"
-              x2="60"
-              y2="24"
-              stroke="#38BDF8"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
-            <circle cx="60" cy="22" r="2.5" fill="#38BDF8" />
-
-            {/* Left & Right Lateral Ears */}
-            <rect
-              x="25"
-              y="53"
-              width="4"
-              height="14"
-              rx="2"
-              fill="#3B82F6"
-              opacity="0.8"
-            />
-            <rect
-              x="91"
-              y="53"
-              width="4"
-              height="14"
-              rx="2"
-              fill="#3B82F6"
-              opacity="0.8"
-            />
-
-            {/* Main Head Chassis (Geometric Squircle) */}
-            <rect
-              x="31"
-              y="34"
-              width="58"
-              height="48"
-              rx="16"
-              className="fill-slate-100 dark:fill-[#0F172A] stroke-sky-400"
-              strokeWidth="1.5"
-            />
-
-            {/* Visor Aperture */}
-            <rect
-              x="38"
-              y="42"
-              width="44"
-              height="28"
-              rx="10"
-              className="fill-slate-900 dark:fill-[#070A12] stroke-slate-200 dark:stroke-slate-800"
-              strokeWidth="1"
-            />
-
-            {/* Vector Eyes with Natural Blink Animation */}
-            <g className="animate-[blink_4s_infinite]">
-              {/* Left Eye Capsule */}
-              <rect
-                x="46"
-                y="52"
-                width="8"
-                height="6"
-                rx="3"
-                fill="#38BDF8"
-              />
-              {/* Right Eye Capsule */}
-              <rect
-                x="66"
-                y="52"
-                width="8"
-                height="6"
-                rx="3"
-                fill="#38BDF8"
-              />
-            </g>
-
-            {/* Geometric Torso Base */}
-            <path
-              d="M45 83 L50 96 H70 L75 83"
-              className="fill-slate-100 dark:fill-[#0F172A] stroke-blue-500"
-              strokeWidth="1.5"
-              strokeLinejoin="round"
-            />
-
-            {/* Cyber Core Reactor */}
-            <circle
-              cx="60"
-              cy="89"
-              r="2.5"
-              fill="#38BDF8"
-              filter="url(#coreGlow)"
-            />
-            <circle
-              cx="60"
-              cy="89"
-              r="5"
-              fill="none"
-              stroke="#38BDF8"
-              strokeWidth="1"
-              strokeOpacity="0.4"
-            />
-          </svg>
+        <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-600 via-sky-500 to-indigo-600 text-white font-black text-3xl shadow-2xl shadow-blue-500/30 ring-4 ring-sky-400/20 animate-pulse">
+          CR
+          {/* Subtle spinning border ring */}
+          <div className="absolute -inset-2 rounded-[28px] border border-sky-400/30 animate-[spin_8s_linear_infinite] pointer-events-none" />
         </div>
       </div>
 

@@ -156,6 +156,7 @@ interface AppState {
   ) => void;
   toggleCommentLike: (postId: string, commentId: string) => void;
   toggleFollowUser: (userId: string) => void;
+  followingUserIds: string[];
 
   // Stories
   stories: StoryItem[];
@@ -221,7 +222,7 @@ interface AppState {
         mediaUrl: string;
         mediaType: "image" | "video";
         authorUsername: string;
-        authorName: string;
+        authorName?: string;
       };
     }
   ) => void;
@@ -419,6 +420,7 @@ export const useAppStore = create<AppState>()(
       registeredUsers: [],
       savedAccounts: [],
       contactAliases: {},
+      followingUserIds: [],
 
       switchAccount: (userId: string) => {
         const cleanId = userId.toLowerCase().trim();
@@ -659,30 +661,12 @@ export const useAppStore = create<AppState>()(
           };
         }
 
-        const userBookmarks = get().userBookmarks?.[found.id] || [];
-
-        const savedAccount: SavedAccountItem = {
-          id: found.id,
-          name: found.name,
-          username: found.username,
-          email: found.email,
-          avatarUrl: found.avatarUrl,
-          password: password || found.password,
-          isOAuth: false,
-        };
-        const currentSaved = get().savedAccounts || [];
-        const nextSaved = [
-          savedAccount,
-          ...currentSaved.filter((a) => a.id !== savedAccount.id && a.username.toLowerCase() !== savedAccount.username.toLowerCase()),
-        ].slice(0, 3);
-
-        // Beralih ke akun yang ditemukan dengan data bersih milik akun tersebut
-        set((state) => ({
+        // Beralih ke akun yang ditemukan — perbarui sesi tanpa menghapus data global
+        set(() => ({
           isAuthenticated: true,
           isPrivateAccount: Boolean(found.isPrivate),
           showOnlineStatus: found.showOnlineStatus !== false,
           onlineVisibility: found.onlineVisibility || "everyone",
-          savedAccounts: nextSaved,
           currentUser: {
             id: found.id,
             name: found.name,
@@ -704,18 +688,6 @@ export const useAppStore = create<AppState>()(
             postsCount: found.postsCount || 0,
             createdAt: found.createdAt || new Date().toISOString(),
           },
-          conversations: state.conversations.filter(
-            (c) =>
-              c.participant?.id === found.id ||
-              c.participantIds?.includes(found.id) ||
-              c.creatorId === found.id
-          ),
-          notifications: state.notifications.filter((n) => n.recipientId === found.id),
-          stories: state.stories.filter((s) => s.userId === found.id),
-          posts: state.posts.map((p) => ({
-            ...p,
-            isBookmarked: userBookmarks.includes(p.id),
-          })),
         }));
 
         return { success: true, message: "Berhasil masuk!" };
@@ -786,8 +758,6 @@ export const useAppStore = create<AppState>()(
           }));
         }
 
-        const userBookmarks = get().userBookmarks?.[existingUser.id] || [];
-
         const activeProfile: UserProfile = {
           id: existingUser.id,
           name: existingUser.name,
@@ -810,7 +780,8 @@ export const useAppStore = create<AppState>()(
           createdAt: existingUser.createdAt || new Date().toISOString(),
         };
 
-        const savedAccount: SavedAccountItem = {
+        // Simpan akun ke daftar switch account secara otomatis
+        const savedEntry: SavedAccountItem = {
           id: activeProfile.id,
           name: activeProfile.name,
           username: activeProfile.username,
@@ -820,33 +791,15 @@ export const useAppStore = create<AppState>()(
         };
         const currentSaved = get().savedAccounts || [];
         const nextSaved = [
-          savedAccount,
-          ...currentSaved.filter((a) => a.id !== savedAccount.id && a.username.toLowerCase() !== savedAccount.username.toLowerCase()),
+          savedEntry,
+          ...currentSaved.filter((a) => a.id !== savedEntry.id && a.email?.toLowerCase() !== cleanEmail),
         ].slice(0, 3);
 
-        set((state) => ({
+        // Hanya perbarui status login & profile aktif — jangan pernah hapus data global
+        set(() => ({
           isAuthenticated: true,
           currentUser: activeProfile,
           savedAccounts: nextSaved,
-          conversations: isNewUser
-            ? []
-            : state.conversations.filter(
-                (c) =>
-                  c.participant?.id === existingUser!.id ||
-                  c.participantIds?.includes(existingUser!.id) ||
-                  c.creatorId === existingUser!.id
-              ),
-          messages: isNewUser ? {} : state.messages,
-          notifications: isNewUser
-            ? []
-            : state.notifications.filter((n) => n.recipientId === existingUser!.id),
-          stories: isNewUser ? [] : state.stories.filter((s) => s.userId === existingUser!.id),
-          posts: isNewUser
-            ? []
-            : state.posts.map((p) => ({
-                ...p,
-                isBookmarked: userBookmarks.includes(p.id),
-              })),
         }));
 
         pushToServer("USER_STATUS", { userId: activeProfile.id, isOnline: true });
@@ -854,6 +807,7 @@ export const useAppStore = create<AppState>()(
         return { success: true, user: activeProfile };
       },
       logout: () => {
+        // Hanya reset auth state — pertahankan semua data (posts, messages, dll) di penyimpanan lokal
         set(() => ({
           isAuthenticated: false,
           isLogoutModalOpen: false,
@@ -874,21 +828,16 @@ export const useAppStore = create<AppState>()(
             postsCount: 0,
             phone: "",
           },
-          conversations: [],
-          messages: {},
-          notifications: [],
-          stories: [],
-          posts: [],
           activeConversationId: undefined,
         }));
       },
 
       // Social Feed
-      posts: [],
+      posts: initialPosts,
       archivedPosts: [],
       userBookmarks: {},
-      onlineUsers: [],
-      trends: [],
+      onlineUsers: initialOnlineUsers,
+      trends: initialTrends,
 
       addPost: (content, mediaUrl, mediaUrls, filter, taggedUsers, musicTrack) => {
         const user = get().currentUser;
@@ -1227,10 +1176,16 @@ export const useAppStore = create<AppState>()(
         }
         if (!target) return;
 
-        const isCurrentlyFollowing = Boolean(
-          target.isFollowing ?? targetOnline?.isFollowing ?? targetReg?.isFollowing ?? false
-        );
+        const currentFollowingList = state.followingUserIds || [];
+        const isCurrentlyFollowing =
+          currentFollowingList.some(
+            (id) => id === target.id || id.toLowerCase() === target.username.toLowerCase()
+          ) || Boolean(target.isFollowing);
+
         const nextFollowing = !isCurrentlyFollowing;
+        const nextFollowingList = nextFollowing
+          ? [...currentFollowingList.filter((id) => id !== target.id && id.toLowerCase() !== target.username.toLowerCase()), target.id]
+          : currentFollowingList.filter((id) => id !== target.id && id.toLowerCase() !== target.username.toLowerCase());
 
         set((s) => {
           const updatedOnline = s.onlineUsers.map((u) =>
@@ -1345,6 +1300,7 @@ export const useAppStore = create<AppState>()(
           }
 
           return {
+            followingUserIds: nextFollowingList,
             onlineUsers: finalOnline,
             registeredUsers: updatedRegistered,
             currentUser: updatedCurrentUser,
@@ -1355,7 +1311,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Stories
-      stories: [],
+      stories: initialStories,
       archivedStories: [],
       storyUploadQuality: "high",
       setStoryUploadQuality: (q) => set({ storyUploadQuality: q }),
@@ -1504,9 +1460,9 @@ export const useAppStore = create<AppState>()(
       },
 
       // Messaging
-      conversations: [],
-      activeConversationId: "",
-      messages: {},
+      conversations: initialConversations,
+      activeConversationId: "conv-bot",
+      messages: initialMessages,
       clearedConversations: {},
       typingStatus: {},
       setTypingStatus: (status) => set({ typingStatus: status }),
@@ -1815,7 +1771,6 @@ export const useAppStore = create<AppState>()(
           callLog: extra?.callLog,
           replyTo: extra?.replyTo,
           storyReply: extra?.storyReply,
-          storyMention: extra?.storyMention,
           createdAt: new Date().toISOString(),
           isRead: false,
         };
@@ -1823,8 +1778,6 @@ export const useAppStore = create<AppState>()(
         const lastPreview =
           msgType === "system"
             ? textContent
-            : extra?.storyMention
-            ? `Menyebut Anda dalam cerita`
             : extra?.storyReply
             ? `Membalas cerita: ${textContent || "Merespons cerita"}`
             : textContent ||
@@ -2153,7 +2106,7 @@ export const useAppStore = create<AppState>()(
       },
 
       // Notifications
-      notifications: [],
+      notifications: initialNotifications,
       addNotification: (notification) => {
         const newNotif: NotificationItem = {
           ...notification,
@@ -2390,7 +2343,6 @@ export const useAppStore = create<AppState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           sanitizePersistedStore(state);
-          state.setHydrated(true);
         }
       },
       partialize: (state) => ({
@@ -2399,8 +2351,6 @@ export const useAppStore = create<AppState>()(
         isAuthenticated: state.isAuthenticated,
         currentUser: state.currentUser,
         registeredUsers: state.registeredUsers,
-        savedAccounts: state.savedAccounts,
-        contactAliases: state.contactAliases,
         posts: state.posts,
         archivedPosts: state.archivedPosts,
         userBookmarks: state.userBookmarks,
@@ -2423,6 +2373,9 @@ export const useAppStore = create<AppState>()(
         activeSessions: state.activeSessions,
         chatCustomization: state.chatCustomization,
         clearedConversations: state.clearedConversations,
+        followingUserIds: state.followingUserIds,
+        contactAliases: state.contactAliases,
+        savedAccounts: state.savedAccounts,
       }),
     }
   )

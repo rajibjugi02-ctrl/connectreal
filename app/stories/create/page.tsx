@@ -18,20 +18,11 @@ import {
   RefreshCw,
   Sliders,
   Check,
-  Wand2,
-  Palette,
 } from "lucide-react";
 import { useAppStore } from "@/lib/store/useAppStore";
 import { TextOverlay, StickerOverlay, UserProfile } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { uploadMediaFile } from "@/lib/utils/mediaUpload";
-import {
-  StoryEffectsOverlay,
-  VISUAL_FILTERS,
-  EFFECT_OVERLAYS,
-  VisualFilterId,
-  EffectOverlayId,
-} from "@/components/stories/StoryEffectsOverlay";
 
 // Curated emoji sticker palette
 const STORY_STICKERS = [
@@ -106,7 +97,7 @@ export default function CreateStoryPage() {
   // Drag-and-drop state for overlays on canvas
   const [activeDragItem, setActiveDragItem] = useState<{
     id: string;
-    type: "text" | "sticker";
+    type: "text" | "sticker" | "tag";
   } | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
@@ -122,20 +113,21 @@ export default function CreateStoryPage() {
   const [tagPositions, setTagPositions] = useState<Record<string, { x: number; y: number }>>({});
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagSearchQuery, setTagSearchQuery] = useState("");
+  const [tagStyles, setTagStyles] = useState<Record<string, { bgStyle?: "black" | "white" | "transparent"; fontSize?: number }>>({});
 
-  // Visual filter and effect overlay state
-  const [selectedFilter, setSelectedFilter] = useState<VisualFilterId>("normal");
-  const [selectedEffect, setSelectedEffect] = useState<EffectOverlayId>("none");
-
-  // Active drawer tool: null | 'text' | 'sticker' | 'quality' | 'filter' | 'effect'
-  const [activeTool, setActiveTool] = useState<"text" | "sticker" | "quality" | "filter" | "effect" | null>(null);
+  // Active drawer tool: null | 'text' | 'sticker' | 'quality'
+  const [activeTool, setActiveTool] = useState<"text" | "sticker" | "quality" | null>(null);
 
   // Text editor draft states
   const [draftText, setDraftText] = useState("");
   const [textColor, setTextColor] = useState("#FFFFFF");
   const [selectedFont, setSelectedFont] = useState(STORY_FONTS[0].fontFamily);
-  const [textBgStyle, setTextBgStyle] = useState<"translucent" | "solid" | "none">("translucent");
+  const [textBgStyle, setTextBgStyle] = useState<"black" | "white" | "transparent">("black");
+  const [draftFontSize, setDraftFontSize] = useState<number>(18);
   const [textPos, setTextPos] = useState<"top" | "center" | "bottom">("center");
+
+  // Selected item on canvas for resize / background tweaking
+  const [selectedCanvasItem, setSelectedCanvasItem] = useState<{ id: string; type: "text" | "sticker" | "tag" } | null>(null);
 
   // File picker ref
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -261,20 +253,20 @@ export default function CreateStoryPage() {
     }
 
     const yCoord = textPos === "top" ? 22 : textPos === "center" ? 50 : 78;
-    const bgColor =
-      textBgStyle === "solid"
-        ? "#0F172A"
-        : textBgStyle === "translucent"
-          ? "rgba(15, 23, 42, 0.75)"
-          : "transparent";
 
     const newOverlay: TextOverlay = {
       id: `text-${Date.now()}`,
       text: draftText.trim(),
-      color: textColor,
-      bgColor,
+      color: textBgStyle === "white" ? "#0F172A" : textColor,
+      bgColor:
+        textBgStyle === "transparent"
+          ? "transparent"
+          : textBgStyle === "white"
+          ? "#FFFFFF"
+          : "rgba(0, 0, 0, 0.75)",
+      bgStyle: textBgStyle,
       position: { x: 50, y: yCoord },
-      fontSize: 18,
+      fontSize: draftFontSize,
       fontFamily: selectedFont,
     };
 
@@ -296,17 +288,18 @@ export default function CreateStoryPage() {
     setActiveTool(null);
   };
 
-  // Drag-and-drop pointer handlers for text & emoji on story canvas
+  // Drag-and-drop pointer handlers for text, emoji & tags on story canvas
   const handlePointerDownItem = (
     e: React.PointerEvent,
     id: string,
-    type: "text" | "sticker"
+    type: "text" | "sticker" | "tag"
   ) => {
     e.stopPropagation();
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch {}
     setActiveDragItem({ id, type });
+    setSelectedCanvasItem({ id, type });
   };
 
   const handlePointerMoveCanvas = (e: React.PointerEvent) => {
@@ -319,10 +312,17 @@ export default function CreateStoryPage() {
       setTextOverlays((prev) =>
         prev.map((t) => (t.id === activeDragItem.id ? { ...t, position: { x: xPct, y: yPct } } : t))
       );
-    } else {
+    } else if (activeDragItem.type === "sticker") {
       setStickers((prev) =>
         prev.map((s) => (s.id === activeDragItem.id ? { ...s, position: { x: xPct, y: yPct } } : s))
       );
+    } else if (activeDragItem.type === "tag") {
+      const cleanTag = activeDragItem.id.replace(/^@/, "");
+      setTagPositions((prev) => ({
+        ...prev,
+        [cleanTag]: { x: xPct, y: yPct },
+        [activeDragItem.id]: { x: xPct, y: yPct },
+      }));
     }
   };
 
@@ -360,7 +360,6 @@ export default function CreateStoryPage() {
         }
       }
 
-      const currentFilterObj = VISUAL_FILTERS.find((f) => f.id === selectedFilter);
       const newStoryId = `story-${Date.now()}`;
 
       addStory({
@@ -378,8 +377,7 @@ export default function CreateStoryPage() {
         stickers,
         taggedUsers,
         tagPositions,
-        visualFilter: currentFilterObj && currentFilterObj.cssFilter !== "none" ? currentFilterObj.cssFilter : undefined,
-        effectOverlay: selectedEffect !== "none" ? selectedEffect : undefined,
+        tagStyles,
       });
 
       // Module 11: Tag Story otomatis masuk ke DM lawan bicara dengan tombol Repost Story ala Instagram
@@ -491,40 +489,6 @@ export default function CreateStoryPage() {
             <span className="text-[11px] uppercase tracking-wider">{quality === "high" ? "HD" : quality}</span>
           </button>
 
-          {/* Filter Visual Trigger */}
-          <button
-            type="button"
-            onClick={() => setActiveTool(activeTool === "filter" ? null : "filter")}
-            aria-label="Filter Visual Estetik"
-            title="Filter Visual Estetik"
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-2xs active:scale-95",
-              selectedFilter !== "normal" || activeTool === "filter"
-                ? "bg-purple-600 text-white shadow-sm"
-                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-            )}
-          >
-            <Palette className="w-4 h-4" />
-            <span className="hidden sm:inline">Filter</span>
-          </button>
-
-          {/* Efek Animasi Trigger */}
-          <button
-            type="button"
-            onClick={() => setActiveTool(activeTool === "effect" ? null : "effect")}
-            aria-label="Efek Animasi Partikel"
-            title="Efek Animasi Partikel & Shimmer"
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all shadow-2xs active:scale-95",
-              selectedEffect !== "none" || activeTool === "effect"
-                ? "bg-amber-500 text-white shadow-sm"
-                : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-            )}
-          >
-            <Wand2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Efek</span>
-          </button>
-
           {/* Add Text Trigger */}
           <button
             type="button"
@@ -620,7 +584,7 @@ export default function CreateStoryPage() {
                 )}
               </div>
 
-              {/* Foreground Media with Selected Visual Filter */}
+              {/* Foreground Media without filters (Warna Asli Jernih) */}
               {mediaType === "video" ? (
                 <video
                   src={mediaUrl}
@@ -628,122 +592,244 @@ export default function CreateStoryPage() {
                   loop
                   muted
                   playsInline
-                  style={{
-                    filter: VISUAL_FILTERS.find((f) => f.id === selectedFilter)?.cssFilter || undefined,
-                  }}
-                  className="relative z-10 max-w-full max-h-full object-contain transition-all duration-300 pointer-events-none"
+                  className="relative z-10 max-w-full max-h-full object-contain pointer-events-none"
                 />
               ) : (
                 <img
                   src={mediaUrl}
                   alt="Story preview"
-                  style={{
-                    filter: VISUAL_FILTERS.find((f) => f.id === selectedFilter)?.cssFilter || undefined,
-                  }}
-                  className="relative z-10 max-w-full max-h-full object-contain transition-all duration-300 pointer-events-none"
+                  className="relative z-10 max-w-full max-h-full object-contain pointer-events-none"
                 />
               )}
 
-              {/* Real-time Interactive Effects Overlay (Sparkles, VHS, Bokeh, Grain) */}
-              <StoryEffectsOverlay effect={selectedEffect} />
-
-              {/* Quality & Active Filter/Effect Badges */}
-              <div className="absolute top-12 left-4 z-20 flex items-center gap-1.5 flex-wrap pointer-events-none">
+              {/* Quality Badge Only */}
+              <div className="absolute top-12 left-4 z-20 flex items-center gap-1.5 pointer-events-none">
                 <div className="px-2.5 py-0.5 rounded-full bg-black/70 backdrop-blur-md text-[10px] font-black tracking-wider text-emerald-400 border border-emerald-400/30 shadow-xs">
                   {quality.toUpperCase()} HD
                 </div>
-                {selectedFilter !== "normal" && (
-                  <div className="px-2.5 py-0.5 rounded-full bg-purple-600/80 backdrop-blur-md text-[10px] font-bold text-white border border-purple-400/40 shadow-xs">
-                    🎨 {VISUAL_FILTERS.find((f) => f.id === selectedFilter)?.name}
-                  </div>
-                )}
-                {selectedEffect !== "none" && (
-                  <div className="px-2.5 py-0.5 rounded-full bg-amber-500/80 backdrop-blur-md text-[10px] font-bold text-white border border-amber-300/40 shadow-xs animate-pulse">
-                    ✨ {EFFECT_OVERLAYS.find((e) => e.id === selectedEffect)?.name}
-                  </div>
-                )}
               </div>
 
-              {/* Draggable Text Overlays Layer */}
-              {textOverlays.map((to) => (
+              {/* Floating Item Customization Toolbar (Background Style Toggle & Resize Slider) */}
+              {selectedCanvasItem && (
                 <div
-                  key={to.id}
-                  onPointerDown={(e) => handlePointerDownItem(e, to.id, "text")}
-                  style={{
-                    top: `${to.position.y}%`,
-                    left: `${to.position.x}%`,
-                    transform: "translate(-50%, -50%)",
-                    backgroundColor: to.bgColor,
-                    color: to.color,
-                    fontFamily: to.fontFamily || "inherit",
-                  }}
-                  className="absolute z-20 px-3.5 py-1.5 rounded-xl font-bold text-center text-sm shadow-md flex items-center gap-2 group cursor-grab active:cursor-grabbing select-none"
-                  title="Geser teks ke mana saja, atau klik X untuk hapus"
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-14 left-3 right-3 z-40 bg-slate-900/95 backdrop-blur-md border border-slate-700/80 text-white p-2.5 rounded-2xl shadow-2xl flex flex-col sm:flex-row items-center justify-between gap-2.5 animate-in fade-in duration-150"
                 >
-                  <span>{to.text}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setTextOverlays((prev) => prev.filter((item) => item.id !== to.id));
-                    }}
-                    className="p-0.5 rounded-full hover:bg-black/30 text-white/80 hover:text-white transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Background Style Toggle for Text and Tags */}
+                  {(selectedCanvasItem.type === "text" || selectedCanvasItem.type === "tag") && (
+                    <div className="flex items-center gap-1.5 text-xs w-full sm:w-auto">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Latar:</span>
+                      {[
+                        { id: "black" as const, label: "Hitam 75%", class: "bg-black/85 text-white border border-white/20" },
+                        { id: "white" as const, label: "Putih", class: "bg-white text-slate-900 border border-slate-300 font-bold" },
+                        { id: "transparent" as const, label: "Transparan", class: "bg-transparent border border-white/40 text-white font-extrabold" },
+                      ].map((style) => {
+                        const currentStyle =
+                          selectedCanvasItem.type === "text"
+                            ? textOverlays.find((t) => t.id === selectedCanvasItem.id)?.bgStyle || "black"
+                            : tagStyles[selectedCanvasItem.id.replace(/^@/, "")]?.bgStyle || "black";
+                        const isActive = currentStyle === style.id;
+
+                        return (
+                          <button
+                            key={style.id}
+                            type="button"
+                            onClick={() => {
+                              if (selectedCanvasItem.type === "text") {
+                                setTextOverlays((prev) =>
+                                  prev.map((t) =>
+                                    t.id === selectedCanvasItem.id ? { ...t, bgStyle: style.id } : t
+                                  )
+                                );
+                              } else {
+                                const tagKey = selectedCanvasItem.id.replace(/^@/, "");
+                                setTagStyles((prev) => ({
+                                  ...prev,
+                                  [tagKey]: { ...prev[tagKey], bgStyle: style.id },
+                                }));
+                              }
+                            }}
+                            className={cn(
+                              "px-2 py-1 rounded-lg text-[10px] font-bold transition-all shrink-0",
+                              style.class,
+                              isActive ? "ring-2 ring-blue-500 scale-105" : "opacity-60 hover:opacity-100"
+                            )}
+                          >
+                            {style.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Resize Slider (Perbesar / Perkecil Ukuran Manual 12px - 48px) */}
+                  <div className="flex items-center justify-between gap-2 text-xs w-full sm:w-auto">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Ukuran:</span>
+                    <input
+                      type="range"
+                      min={selectedCanvasItem.type === "sticker" ? 20 : 12}
+                      max={selectedCanvasItem.type === "sticker" ? 72 : 44}
+                      value={
+                        selectedCanvasItem.type === "text"
+                          ? textOverlays.find((t) => t.id === selectedCanvasItem.id)?.fontSize || 18
+                          : selectedCanvasItem.type === "sticker"
+                          ? stickers.find((s) => s.id === selectedCanvasItem.id)?.size || 40
+                          : tagStyles[selectedCanvasItem.id.replace(/^@/, "")]?.fontSize || 13
+                      }
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        if (selectedCanvasItem.type === "text") {
+                          setTextOverlays((prev) =>
+                            prev.map((t) => (t.id === selectedCanvasItem.id ? { ...t, fontSize: val } : t))
+                          );
+                        } else if (selectedCanvasItem.type === "sticker") {
+                          setStickers((prev) =>
+                            prev.map((s) => (s.id === selectedCanvasItem.id ? { ...s, size: val } : s))
+                          );
+                        } else {
+                          const tagKey = selectedCanvasItem.id.replace(/^@/, "");
+                          setTagStyles((prev) => ({
+                            ...prev,
+                            [tagKey]: { ...prev[tagKey], fontSize: val },
+                          }));
+                        }
+                      }}
+                      className="w-24 sm:w-32 accent-blue-500 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCanvasItem(null)}
+                      className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white"
+                      title="Selesai atur"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              ))}
+              )}
+
+              {/* Draggable Text Overlays Layer */}
+              {textOverlays.map((to) => {
+                const isSelected = selectedCanvasItem?.id === to.id;
+                const bgStyle = to.bgStyle || "black";
+                const fontSize = to.fontSize || 18;
+
+                return (
+                  <div
+                    key={to.id}
+                    onPointerDown={(e) => handlePointerDownItem(e, to.id, "text")}
+                    style={{
+                      top: `${to.position.y}%`,
+                      left: `${to.position.x}%`,
+                      transform: "translate(-50%, -50%)",
+                      color: bgStyle === "white" ? "#0F172A" : (to.color || "#FFFFFF"),
+                      fontSize: `${fontSize}px`,
+                      fontFamily: to.fontFamily || "inherit",
+                    }}
+                    className={cn(
+                      "absolute z-20 px-3 py-1.5 rounded-xl font-bold text-center flex items-center gap-2 group cursor-grab active:cursor-grabbing select-none transition-all",
+                      bgStyle === "black" && "bg-black/75 text-white backdrop-blur-xs border border-white/20 shadow-lg",
+                      bgStyle === "white" && "bg-white/95 text-slate-900 shadow-xl border border-slate-200",
+                      bgStyle === "transparent" && "bg-transparent text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] font-extrabold",
+                      isSelected && "ring-2 ring-blue-500 shadow-blue-500/30"
+                    )}
+                    title="Geser teks, klik untuk opsi background/ukuran"
+                  >
+                    <span>{to.text}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTextOverlays((prev) => prev.filter((item) => item.id !== to.id));
+                        if (selectedCanvasItem?.id === to.id) setSelectedCanvasItem(null);
+                      }}
+                      className="p-0.5 rounded-full hover:bg-black/30 text-white/80 hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
 
               {/* Draggable Sticker Overlays Layer */}
-              {stickers.map((st) => (
-                <div
-                  key={st.id}
-                  onPointerDown={(e) => handlePointerDownItem(e, st.id, "sticker")}
-                  style={{
-                    top: `${st.position.y}%`,
-                    left: `${st.position.x}%`,
-                    transform: "translate(-50%, -50%)",
-                    fontSize: `${st.size || 40}px`,
-                    fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", sans-serif',
-                  }}
-                  className="absolute z-20 cursor-grab active:cursor-grabbing group select-none relative"
-                  title="Geser emoji ke mana saja, atau klik X untuk hapus"
-                >
-                  <span>{st.emoji}</span>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setStickers((prev) => prev.filter((item) => item.id !== st.id));
+              {stickers.map((st) => {
+                const isSelected = selectedCanvasItem?.id === st.id;
+                return (
+                  <div
+                    key={st.id}
+                    onPointerDown={(e) => handlePointerDownItem(e, st.id, "sticker")}
+                    style={{
+                      top: `${st.position.y}%`,
+                      left: `${st.position.x}%`,
+                      transform: "translate(-50%, -50%)",
+                      fontSize: `${st.size || 40}px`,
+                      fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", sans-serif',
                     }}
-                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className={cn(
+                      "absolute z-20 cursor-grab active:cursor-grabbing group select-none relative transition-all",
+                      isSelected && "p-1 rounded-2xl ring-2 ring-blue-500"
+                    )}
+                    title="Geser emoji ke mana saja, klik untuk ubah ukuran"
                   >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              ))}
+                    <span>{st.emoji}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStickers((prev) => prev.filter((item) => item.id !== st.id));
+                        if (selectedCanvasItem?.id === st.id) setSelectedCanvasItem(null);
+                      }}
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </div>
+                );
+              })}
 
               {/* Tagged Users Mentions Layer */}
               {taggedUsers.map((tag) => {
                 const cleanTag = tag.replace(/^@/, "");
                 const pos = tagPositions[cleanTag] || tagPositions[tag] || { x: 50, y: 70 };
+                const styleObj = tagStyles[cleanTag] || tagStyles[tag] || { bgStyle: "black", fontSize: 13 };
+                const bgStyle = styleObj.bgStyle || "black";
+                const fontSize = styleObj.fontSize || 13;
+                const isSelected = selectedCanvasItem?.id === tag || selectedCanvasItem?.id === cleanTag;
+
                 return (
                   <div
                     key={tag}
+                    onPointerDown={(e) => handlePointerDownItem(e, cleanTag, "tag")}
                     style={{
                       top: `${pos.y}%`,
                       left: `${pos.x}%`,
                       transform: "translate(-50%, -50%)",
+                      fontSize: `${fontSize}px`,
                     }}
-                    className="absolute z-20 px-3 py-1.5 rounded-full bg-black/80 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 shadow-xl border border-white/20 group cursor-pointer animate-in zoom-in-95 duration-150"
-                    onClick={() => {
-                      setTaggedUsers((prev) => prev.filter((t) => t !== tag && t !== cleanTag));
-                    }}
-                    title="Ketuk untuk menghapus tag"
+                    className={cn(
+                      "absolute z-20 px-3 py-1.5 rounded-full font-bold flex items-center gap-1.5 shadow-xl group cursor-grab active:cursor-grabbing select-none transition-all",
+                      bgStyle === "black" && "bg-black/75 text-white border border-white/20 backdrop-blur-xs",
+                      bgStyle === "white" && "bg-white/95 text-slate-900 border border-slate-200 shadow-xl",
+                      bgStyle === "transparent" && "bg-transparent text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] font-extrabold",
+                      isSelected && "ring-2 ring-sky-400"
+                    )}
+                    title="Geser tag ke mana saja, klik untuk atur background/ukuran"
                   >
-                    <span className="text-sky-400 font-bold">@</span>
+                    <span className={cn(bgStyle === "white" ? "text-blue-600" : "text-sky-400", "font-extrabold")}>@</span>
                     <span>{cleanTag}</span>
-                    <X className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-colors" />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setTaggedUsers((prev) => prev.filter((t) => t !== tag && t !== cleanTag));
+                        if (selectedCanvasItem?.id === cleanTag || selectedCanvasItem?.id === tag) {
+                          setSelectedCanvasItem(null);
+                        }
+                      }}
+                      className="p-0.5 rounded-full hover:bg-black/30 text-white/70 hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 );
               })}
@@ -948,6 +1034,50 @@ export default function CreateStoryPage() {
                 />
               ))}
             </div>
+          </div>
+
+          {/* Background Style Toggle */}
+          <div className="space-y-1.5 pt-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 block">
+              Gaya Latar Teks:
+            </span>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: "black" as const, label: "Hitam 75%", class: "bg-black/85 text-white border border-white/20" },
+                { id: "white" as const, label: "Putih", class: "bg-white text-slate-900 border border-slate-300 font-bold" },
+                { id: "transparent" as const, label: "Transparan", class: "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white font-extrabold" },
+              ].map((style) => (
+                <button
+                  key={style.id}
+                  type="button"
+                  onClick={() => setTextBgStyle(style.id)}
+                  className={cn(
+                    "py-1.5 px-2 rounded-xl text-xs font-bold transition-all text-center",
+                    style.class,
+                    textBgStyle === style.id
+                      ? "ring-2 ring-blue-500 shadow-xs scale-102"
+                      : "opacity-70 hover:opacity-100"
+                  )}
+                >
+                  {style.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Size Slider (12px - 48px) */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 shrink-0">
+              Ukuran ({draftFontSize}px):
+            </span>
+            <input
+              type="range"
+              min={12}
+              max={48}
+              value={draftFontSize}
+              onChange={(e) => setDraftFontSize(parseInt(e.target.value, 10))}
+              className="flex-1 accent-blue-500 cursor-pointer"
+            />
           </div>
 
           {/* Font Typography Selector */}

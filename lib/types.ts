@@ -164,6 +164,13 @@ export interface MessageItem {
     authorUsername: string;
     authorName: string;
   };
+  attachment?: {
+    type: "image" | "audio" | "file";
+    url: string;
+    name?: string;
+    size?: number | string;
+    duration?: number;
+  };
   deletedForUsers?: string[];
 }
 
@@ -182,6 +189,7 @@ export interface TextOverlay {
   text: string;
   color: string;
   bgColor?: string;
+  bgStyle?: "transparent" | "black" | "white";
   position: { x: number; y: number };
   fontSize?: number;
   fontFamily?: string;
@@ -234,6 +242,7 @@ export interface StoryItem {
   commentsCount?: number;
   taggedUsers?: string[];
   tagPositions?: Record<string, { x: number; y: number }>;
+  tagStyles?: Record<string, { bgStyle?: "transparent" | "black" | "white"; fontSize?: number }>;
   viewers?: StoryViewerUser[];
   visualFilter?: string;
   effectOverlay?: string;

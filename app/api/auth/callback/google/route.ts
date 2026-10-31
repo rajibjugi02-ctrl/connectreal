@@ -29,7 +29,9 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+    const clientId =
+      process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+      "750229016216-pfr7ru5sm8vmng6a0582ql6ktqus7dob.apps.googleusercontent.com";
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || "";
     const redirectUri = `${baseOrigin}/api/auth/callback/google`;
 

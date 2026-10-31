@@ -323,14 +323,14 @@ export default function GroupInfoPage() {
         })}
       </div>
 
-      {/* Tab Contents */}
-      <div className="p-4 border-b border-slate-100 dark:border-slate-800">
+      {/* Tab Contents with Independent Scrollbox (Windows & Mobile Ergonomics) */}
+      <div className="p-4 border-b border-slate-100 dark:border-slate-800 max-h-[360px] overflow-y-auto">
         {activeTab === "media" && (
           <div>
             {groupMedia.length > 0 ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
                 {groupMedia.map((item) => (
-                  <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-black/10">
+                  <div key={item.id} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:opacity-90 transition-opacity">
                     <MediaRenderer src={item.url} alt="" className="w-full h-full object-cover" />
                   </div>
                 ))}
@@ -344,18 +344,40 @@ export default function GroupInfoPage() {
         {activeTab === "links" && (
           <div className="space-y-2">
             {groupLinks.length > 0 ? (
-              groupLinks.map((item) => (
-                <a
-                  key={item.id}
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs text-blue-600 dark:text-sky-400 font-semibold truncate"
-                >
-                  <LinkIcon className="w-3.5 h-3.5 shrink-0" />
-                  <span className="truncate">{item.url}</span>
-                </a>
-              ))
+              groupLinks.map((item) => {
+                let domain = "";
+                try {
+                  domain = new URL(item.url).hostname.replace("www.", "");
+                } catch {
+                  domain = "tautan luar";
+                }
+                return (
+                  <a
+                    key={item.id}
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-start gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 hover:border-blue-500/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all group"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <LinkIcon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">
+                          {domain}
+                        </span>
+                      </div>
+                      <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate group-hover:underline">
+                        {item.url}
+                      </p>
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {formatTimestamp(item.createdAt)}
+                      </span>
+                    </div>
+                  </a>
+                );
+              })
             ) : (
               <p className="text-xs text-center text-slate-400 py-6">Belum ada link dibagikan di grup ini.</p>
             )}
@@ -365,29 +387,37 @@ export default function GroupInfoPage() {
         {activeTab === "docs" && (
           <div className="space-y-2">
             {groupDocs.length > 0 ? (
-              groupDocs.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <FileText className="w-5 h-5 text-blue-600 shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                        {item.fileName || "Dokumen"}
-                      </p>
-                      <p className="text-[10px] text-slate-400">{item.fileSize || "Berkas"}</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadDoc(item.mediaUrl!, item.fileName || "dokumen")}
-                    className="p-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white shrink-0 active:scale-95 transition-all"
+              groupDocs.map((item) => {
+                const ext = (item.fileName?.split(".").pop() || "DOC").toUpperCase().slice(0, 4);
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 hover:border-blue-500/40 transition-all"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-[11px] flex items-center justify-center shrink-0 shadow-xs">
+                        {ext}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                          {item.fileName || "Dokumen"}
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          {ext} • {item.fileSize || "Berkas"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDownloadDoc(item.mediaUrl!, item.fileName || "dokumen")}
+                      className="p-2.5 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-sky-400 transition-colors ml-2 shrink-0 active:scale-95"
+                      title="Unduh berkas"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+                );
+              })
             ) : (
               <p className="text-xs text-center text-slate-400 py-6">Belum ada dokumen dibagikan di grup ini.</p>
             )}
@@ -488,3 +518,4 @@ export default function GroupInfoPage() {
     </div>
   );
 }
+

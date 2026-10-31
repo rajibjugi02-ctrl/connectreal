@@ -26,19 +26,6 @@ import { saveMediaFile } from "@/lib/db/mediaStorage";
 import { uploadMediaFile } from "@/lib/utils/mediaUpload";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
 
-// Filter Styles & Names
-export const POST_FILTERS = [
-  { id: "normal", label: "Normal", css: "none" },
-  { id: "fade", label: "Fade", css: "contrast(90%) brightness(105%) saturate(80%)" },
-  { id: "paris", label: "Paris", css: "contrast(105%) brightness(110%) saturate(115%) sepia(10%)" },
-  { id: "simple", label: "Simple", css: "contrast(100%) brightness(102%)" },
-  { id: "midnight", label: "Midnight", css: "contrast(120%) brightness(85%) hue-rotate(190deg) saturate(110%)" },
-  { id: "jakarta", label: "Jakarta", css: "contrast(115%) brightness(105%) sepia(25%) saturate(125%)" },
-  { id: "vivid", label: "Vivid", css: "contrast(125%) saturate(140%)" },
-  { id: "vintage", label: "Vintage", css: "sepia(45%) contrast(95%) brightness(95%)" },
-  { id: "noir", label: "Noir", css: "grayscale(100%) contrast(120%)" },
-];
-
 const EMOJIS = ["😀", "😂", "😍", "🥳", "😎", "🚀", "🔥", "✨", "❤️", "👍", "🙌", "💯", "🎉", "💡", "☕", "🌟"];
 
 interface SelectedMedia {
@@ -54,7 +41,6 @@ export default function CreatePostPage() {
   const [content, setContent] = useState("");
   const [mediaList, setMediaList] = useState<SelectedMedia[]>([]);
   const [activeMediaIndex, setActiveMediaIndex] = useState(0);
-  const [activeFilter, setActiveFilter] = useState("normal");
   const [taggedUsers, setTaggedUsers] = useState<string[]>([]);
   const [showTagSelector, setShowTagSelector] = useState(false);
   const [selectedMusicTrack, setSelectedMusicTrack] = useState<MusicTrack | null>(null);
@@ -169,7 +155,7 @@ export default function CreatePostPage() {
       content.trim(),
       primaryMedia,
       mediaUrls,
-      activeFilter,
+      "normal",
       taggedUsers
     );
 
@@ -180,7 +166,6 @@ export default function CreatePostPage() {
   };
 
   const activeMedia = mediaList[activeMediaIndex];
-  const activeFilterCss = POST_FILTERS.find((f) => f.id === activeFilter)?.css || "none";
 
   const filteredUsersToTag = onlineUsers.filter(
     (u) =>
@@ -270,24 +255,15 @@ export default function CreatePostPage() {
         {/* Media Preview & Active Display */}
         {mediaList.length > 0 ? (
           <div className="space-y-4">
-            {/* Active Media Big View with Filter Applied */}
-            <div className="relative w-full max-h-[460px] sm:max-h-[520px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black flex items-center justify-center">
+            {/* Active Media Big View without Filter and without black background */}
+            <div className="relative w-full max-h-[460px] sm:max-h-[520px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-transparent flex items-center justify-center">
               <MediaRenderer
                 src={activeMedia?.url || ""}
                 forceType={activeMedia?.type}
                 controls
                 playsInline
                 className="max-h-[500px] w-full object-contain"
-                style={{ filter: activeFilterCss }}
               />
-
-              {/* Active Filter Label Badge */}
-              {activeFilter !== "normal" && (
-                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md text-white text-xs font-semibold flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-400" />
-                  <span>Filter: {POST_FILTERS.find((f) => f.id === activeFilter)?.label}</span>
-                </div>
-              )}
             </div>
 
             {/* Thumbnail Carousel Bar */}
@@ -337,46 +313,6 @@ export default function CreatePostPage() {
                 <Plus className="w-5 h-5" />
                 <span className="text-[10px] font-semibold">Tambah</span>
               </button>
-            </div>
-
-            {/* Filter Selector (Fade, Paris, Simple, Midnight, Jakarta, dll.) */}
-            <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#111827] space-y-2.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  Pilih Filter Visual:
-                </span>
-                <span className="text-[11px] text-slate-400 capitalize">
-                  {POST_FILTERS.find((f) => f.id === activeFilter)?.label}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
-                {POST_FILTERS.map((f) => (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => setActiveFilter(f.id)}
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-center",
-                      activeFilter === f.id
-                        ? "border-blue-600 bg-blue-50 dark:bg-blue-950/40 text-blue-600 font-bold shadow-xs"
-                        : "border-slate-200 dark:border-slate-700 hover:border-slate-300 text-slate-600 dark:text-slate-400"
-                    )}
-                  >
-                    {/* Filter mini preview square */}
-                    <div
-                      className="w-10 h-10 rounded-lg bg-cover bg-center border border-slate-300 dark:border-slate-600"
-                      style={{
-                        backgroundImage: activeMedia?.type === "image" ? `url(${activeMedia.url})` : "none",
-                        backgroundColor: activeMedia?.type === "video" ? "#1e293b" : "#3b82f6",
-                        filter: f.css,
-                      }}
-                    />
-                    <span className="text-[11px] leading-tight">{f.label}</span>
-                  </button>
-                ))}
-              </div>
             </div>
           </div>
         ) : (

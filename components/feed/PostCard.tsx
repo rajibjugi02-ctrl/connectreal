@@ -17,19 +17,8 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
+  ZoomIn,
 } from "lucide-react";
-
-const FILTER_CSS: Record<string, string> = {
-  normal: "none",
-  fade: "contrast(90%) brightness(105%) saturate(80%)",
-  paris: "contrast(105%) brightness(110%) saturate(115%) sepia(10%)",
-  simple: "contrast(100%) brightness(102%)",
-  midnight: "contrast(120%) brightness(85%) hue-rotate(190deg) saturate(110%)",
-  jakarta: "contrast(115%) brightness(105%) sepia(25%) saturate(125%)",
-  vivid: "contrast(125%) saturate(140%)",
-  vintage: "sepia(45%) contrast(95%) brightness(95%)",
-  noir: "grayscale(100%) contrast(120%)",
-};
 
 import { PostItem } from "@/lib/types";
 import { useAppStore } from "@/lib/store/useAppStore";
@@ -37,6 +26,7 @@ import { useTranslation } from "@/lib/i18n/translations";
 import { formatTimestamp, cn } from "@/lib/utils";
 import { MediaRenderer } from "@/components/media/MediaRenderer";
 import { ShareSheetModal } from "@/components/share/ShareSheetModal";
+import { ImageZoomLightbox } from "@/components/media/ImageZoomLightbox";
 
 interface PostCardProps {
   post: PostItem;
@@ -61,6 +51,7 @@ export function PostCard({ post }: PostCardProps) {
   const [draftContent, setDraftContent] = useState(post.content);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
 
   // Carousel State for Multi-Media
   const [carouselIndex, setCarouselIndex] = useState(0);
@@ -135,7 +126,6 @@ export function PostCard({ post }: PostCardProps) {
       : post.mediaUrl
       ? [post.mediaUrl]
       : [];
-  const filterCss = FILTER_CSS[post.filter || "normal"] || "none";
 
   const postShareUrl =
     typeof window !== "undefined"
@@ -280,7 +270,7 @@ export function PostCard({ post }: PostCardProps) {
 
           {/* Post Media: Dynamic Aspect Ratio & Instagram-Style Horizontal Swipe Carousel */}
           {medias.length > 0 && (
-            <div className="mt-3 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-black/95">
+            <div className="mt-3 relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
               {medias.length === 1 ? (
                 // Single Media (Full portrait / square / landscape without letterbox cropping)
                 <div
@@ -288,14 +278,26 @@ export function PostCard({ post }: PostCardProps) {
                     if ((e.target as HTMLElement).tagName === "VIDEO") return;
                     router.push(`/post/${post.id}`);
                   }}
-                  className="relative flex items-center justify-center max-h-[580px] overflow-hidden cursor-pointer"
+                  className="relative flex items-center justify-center max-h-[580px] overflow-hidden cursor-pointer group/single"
                 >
                   <MediaRenderer
                     src={medias[0]}
                     alt="Lampiran postingan"
                     className="w-full max-h-[580px] object-contain"
-                    style={{ filter: filterCss }}
                   />
+                  {!medias[0].includes("video") && !medias[0].endsWith(".mp4") && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setZoomImageUrl(medias[0]);
+                      }}
+                      title="Perbesar foto (Zoom)"
+                      className="absolute top-3 right-3 p-2 rounded-xl bg-black/60 hover:bg-black/80 text-white backdrop-blur-xs opacity-0 group-hover/single:opacity-100 transition-opacity z-10"
+                    >
+                      <ZoomIn className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               ) : (
                 // Multi-Media Instagram-Style Swipe Carousel
@@ -313,13 +315,12 @@ export function PostCard({ post }: PostCardProps) {
                           if ((e.target as HTMLElement).tagName === "VIDEO") return;
                           router.push(`/post/${post.id}`);
                         }}
-                        className="min-w-full w-full snap-center shrink-0 flex items-center justify-center bg-black/95 max-h-[580px] cursor-pointer"
+                        className="min-w-full w-full snap-center shrink-0 flex items-center justify-center bg-transparent max-h-[580px] cursor-pointer"
                       >
                         <MediaRenderer
                           src={url}
                           alt={`Media ${idx + 1}`}
                           className="w-full max-h-[580px] object-contain"
-                          style={{ filter: filterCss }}
                         />
                       </div>
                     ))}
@@ -481,6 +482,13 @@ export function PostCard({ post }: PostCardProps) {
         title={`Postingan oleh ${post.author.name} (@${post.author.username})`}
         url={postShareUrl}
         description={post.content.slice(0, 100)}
+      />
+
+      {/* Full-Screen Interactive Zoomable Lightbox */}
+      <ImageZoomLightbox
+        isOpen={Boolean(zoomImageUrl)}
+        onClose={() => setZoomImageUrl(null)}
+        imageUrl={zoomImageUrl || ""}
       />
     </article>
   );

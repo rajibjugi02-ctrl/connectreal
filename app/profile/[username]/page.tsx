@@ -58,6 +58,7 @@ export default function OtherUserProfilePage() {
     setIsMobileChatOpen,
     getOrCreateConversation,
     toggleFollowUser,
+    followingUserIds,
     stories,
   } = useAppStore();
 
@@ -122,7 +123,12 @@ export default function OtherUserProfilePage() {
     (u) => u.username.toLowerCase() === username.toLowerCase()
   );
   if (foundReg) {
-    const isFoll = onlineUsers.find((o) => o.username.toLowerCase() === username.toLowerCase())?.isFollowing ?? foundReg.isFollowing ?? false;
+    const isFoll = Boolean(
+      (foundReg.id && followingUserIds?.includes(foundReg.id)) ||
+      (username && followingUserIds?.includes(username.toLowerCase())) ||
+      foundReg.isFollowing ||
+      onlineUsers.find((o) => o.username.toLowerCase() === username.toLowerCase())?.isFollowing
+    );
     user = {
       id: foundReg.id,
       name: foundReg.name,
@@ -151,8 +157,14 @@ export default function OtherUserProfilePage() {
       (u) => u.username.toLowerCase() === username.toLowerCase()
     );
     if (foundOnline) {
+      const isFoll = Boolean(
+        (foundOnline.id && followingUserIds?.includes(foundOnline.id)) ||
+        (username && followingUserIds?.includes(username.toLowerCase())) ||
+        foundOnline.isFollowing
+      );
       user = {
         ...foundOnline,
+        isFollowing: isFoll,
         isPrivate: foundOnline.isPrivate ?? false,
         showOnlineStatus: foundOnline.showOnlineStatus ?? true,
         onlineVisibility: foundOnline.onlineVisibility ?? "everyone",
@@ -316,8 +328,8 @@ export default function OtherUserProfilePage() {
         </button>
       </header>
 
-      {/* Banner (Foto atau Video dengan Smooth Blur Blend di Tepi Bawah) */}
-      <div className="h-44 sm:h-56 w-full bg-slate-900 relative overflow-hidden">
+      {/* Banner (Foto atau Video dengan Batas Tajam & Jernih) */}
+      <div className="h-44 sm:h-56 w-full bg-slate-900 relative overflow-hidden border-b border-slate-200 dark:border-slate-800">
         {resolvedBanner || user.bannerUrl ? (
           isVideoUrl(user.bannerUrl, user.bannerType) ? (
             <video
@@ -338,8 +350,6 @@ export default function OtherUserProfilePage() {
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-blue-900 to-indigo-950" />
         )}
-        {/* Smooth Gradient Mask & Backdrop Blur Blend */}
-        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-white dark:from-slate-900 via-white/40 dark:via-slate-900/40 to-transparent backdrop-blur-[2px] pointer-events-none" />
       </div>
 
       {/* Profile Info */}
@@ -380,16 +390,18 @@ export default function OtherUserProfilePage() {
             />
           </div>
 
-          {/* Action Buttons: Follow/Unfollow & Send Message */}
+          {/* Action Buttons: Follow/Unfollow & Send Message (Chat dikunci jika belum follow) */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleSendMessage}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-full border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 transition-all text-slate-900 dark:text-slate-100 shadow-xs"
-            >
-              <MessageCircle className="w-4 h-4 text-blue-600 dark:text-sky-400" />
-              <span>{t.profileMessageBtn}</span>
-            </button>
+            {user.isFollowing && (
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs sm:text-sm font-semibold rounded-full border border-[#E2E8F0] dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 active:scale-95 transition-all text-slate-900 dark:text-slate-100 shadow-xs animate-in fade-in"
+              >
+                <MessageCircle className="w-4 h-4 text-blue-600 dark:text-sky-400" />
+                <span>{t.profileMessageBtn}</span>
+              </button>
+            )}
 
             <button
               type="button"

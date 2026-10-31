@@ -18,19 +18,11 @@ import {
   Pause,
   CornerDownRight,
   X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
 } from "lucide-react";
-
-const FILTER_CSS: Record<string, string> = {
-  normal: "none",
-  fade: "contrast(90%) brightness(105%) saturate(80%)",
-  paris: "contrast(105%) brightness(110%) saturate(115%) sepia(10%)",
-  simple: "contrast(100%) brightness(102%)",
-  midnight: "contrast(120%) brightness(85%) hue-rotate(190deg) saturate(110%)",
-  jakarta: "contrast(115%) brightness(105%) sepia(25%) saturate(125%)",
-  vivid: "contrast(125%) saturate(140%)",
-  vintage: "sepia(45%) contrast(95%) brightness(95%)",
-  noir: "grayscale(100%) contrast(120%)",
-};
+import { ImageZoomLightbox } from "@/components/media/ImageZoomLightbox";
 
 const isVideo = (url?: string) => {
   if (!url) return false;
@@ -71,6 +63,29 @@ export default function PostDetailPage() {
   const [currentAudioTime, setCurrentAudioTime] = useState(0);
   const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  const [zoomImageUrl, setZoomImageUrl] = useState<string | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
+
+  const handleCarouselScroll = () => {
+    if (!carouselRef.current) return;
+    const { scrollLeft, clientWidth } = carouselRef.current;
+    if (clientWidth > 0) {
+      const newIdx = Math.round(scrollLeft / clientWidth);
+      setCarouselIndex(newIdx);
+    }
+  };
+
+  const handleScrollCarousel = (dir: "left" | "right") => {
+    if (!carouselRef.current) return;
+    const width = carouselRef.current.clientWidth;
+    const current = carouselRef.current.scrollLeft;
+    carouselRef.current.scrollTo({
+      left: dir === "left" ? current - width : current + width,
+      behavior: "smooth",
+    });
+  };
 
   // Bersihkan audio saat unmount
   useEffect(() => {
@@ -215,54 +230,114 @@ export default function PostDetailPage() {
           {post.content}
         </p>
 
-        {/* Post Media (Foto & Video dengan Filter & Multi-Media Support) */}
+        {/* Post Media: Dynamic Aspect Ratio & Instagram-Style Horizontal Swipe Carousel */}
         {(() => {
-          const medias = post.mediaUrls && post.mediaUrls.length > 0 
-            ? post.mediaUrls 
-            : post.mediaUrl ? [post.mediaUrl] : [];
-          const filterCss = FILTER_CSS[post.filter || "normal"] || "none";
+          const medias =
+            post.mediaUrls && post.mediaUrls.length > 0
+              ? post.mediaUrls
+              : post.mediaUrl
+              ? [post.mediaUrl]
+              : [];
 
           if (medias.length === 0) return null;
 
           if (medias.length === 1) {
             const url = medias[0];
             return (
-              <div className="mt-3 mb-4 rounded-2xl overflow-hidden border border-[#E2E8F0] dark:border-slate-800 bg-black">
-                <MediaRenderer
-                  src={url}
-                  alt="Lampiran postingan"
-                  className="w-full max-h-[520px] object-contain"
-                  style={{ filter: filterCss }}
-                />
+              <div className="mt-3 mb-4 rounded-2xl overflow-hidden border border-[#E2E8F0] dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40">
+                <div
+                  onClick={() => {
+                    if (!isVideo(url)) setZoomImageUrl(url);
+                  }}
+                  className={cn(
+                    "relative flex items-center justify-center max-h-[75vh] overflow-hidden",
+                    !isVideo(url) && "cursor-zoom-in"
+                  )}
+                  title={!isVideo(url) ? "Klik untuk memperbesar (Zoom)" : undefined}
+                >
+                  <MediaRenderer
+                    src={url}
+                    alt="Lampiran postingan"
+                    className="w-full max-h-[75vh] object-contain"
+                  />
+                </div>
               </div>
             );
           }
 
           return (
-            <div className="mt-3 mb-4 space-y-2">
+            <div className="mt-3 mb-4 relative rounded-2xl overflow-hidden border border-[#E2E8F0] dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/40 group">
+              {/* Swipeable Track */}
               <div
-                className={cn(
-                  "grid gap-2 rounded-2xl overflow-hidden border border-[#E2E8F0] dark:border-slate-800 bg-black/40",
-                  medias.length === 2 ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-3"
-                )}
+                ref={carouselRef}
+                onScroll={handleCarouselScroll}
+                className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth no-scrollbar max-h-[75vh]"
               >
                 {medias.map((url, idx) => (
                   <div
                     key={idx}
-                    className="relative h-48 sm:h-60 overflow-hidden bg-black flex items-center justify-center"
+                    onClick={() => {
+                      if (!isVideo(url)) setZoomImageUrl(url);
+                    }}
+                    className={cn(
+                      "min-w-full w-full snap-center shrink-0 flex items-center justify-center bg-transparent max-h-[75vh]",
+                      !isVideo(url) && "cursor-zoom-in"
+                    )}
+                    title={!isVideo(url) ? "Klik untuk memperbesar (Zoom)" : undefined}
                   >
                     <MediaRenderer
                       src={url}
                       alt={`Media ${idx + 1}`}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                      style={{ filter: filterCss }}
+                      className="w-full max-h-[75vh] object-contain"
                     />
                   </div>
                 ))}
               </div>
-              <div className="text-xs text-slate-400 font-medium px-1 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                <span>{medias.length} Media terlampir • Filter: {post.filter || "Normal"}</span>
+
+              {/* Desktop Navigation Chevrons */}
+              {carouselIndex > 0 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleScrollCarousel("left");
+                  }}
+                  aria-label="Media sebelumnya"
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-all active:scale-90 opacity-90 hover:opacity-100 z-10"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              )}
+              {carouselIndex < medias.length - 1 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleScrollCarousel("right");
+                  }}
+                  aria-label="Media berikutnya"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center backdrop-blur-xs transition-all active:scale-90 opacity-90 hover:opacity-100 z-10"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Floating Instagram-Style Indicator Badge (1/N) */}
+              <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/70 backdrop-blur-md text-[11px] font-bold text-white tracking-wide shadow-md pointer-events-none z-10">
+                {carouselIndex + 1}/{medias.length}
+              </div>
+
+              {/* Pagination Dots at Bottom */}
+              <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center gap-1.5 pointer-events-none z-10">
+                {medias.map((_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "h-1.5 rounded-full transition-all duration-200",
+                      carouselIndex === i ? "w-4 bg-blue-500 shadow-xs" : "w-1.5 bg-slate-400/50"
+                    )}
+                  />
+                ))}
               </div>
             </div>
           );
@@ -514,6 +589,13 @@ export default function PostDetailPage() {
           </div>
         )}
       </section>
+
+      {/* Full-Screen Interactive Zoomable Lightbox */}
+      <ImageZoomLightbox
+        isOpen={Boolean(zoomImageUrl)}
+        onClose={() => setZoomImageUrl(null)}
+        imageUrl={zoomImageUrl || ""}
+      />
     </div>
   );
 }

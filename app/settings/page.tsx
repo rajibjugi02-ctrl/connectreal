@@ -45,6 +45,7 @@ type SettingsCategory =
   | "chat"
   | "language"
   | "notifications"
+  | "switch"
   | "danger";
 
 export default function SettingsPage() {
@@ -187,6 +188,12 @@ export default function SettingsPage() {
       label: t.settingsNotifications,
       icon: Bell,
       description: t.settingsNotificationsDesc,
+    },
+    {
+      id: "switch" as const,
+      label: "Ganti Akun (Switch)",
+      icon: Users,
+      description: "Beralih cepat antar akun terdaftar (Maksimal 3 Akun)",
     },
     {
       id: "danger" as const,
@@ -1485,6 +1492,49 @@ export default function SettingsPage() {
             </div>
           )}
 
+          {/* SWITCH ACCOUNT SECTION */}
+          {activeSection === "switch" && (
+            <div className="space-y-6 max-w-3xl">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2 text-slate-900 dark:text-slate-100">
+                  <Users className="w-6 h-6 text-blue-500" />
+                  Ganti Akun (Switch Account)
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Beralih cepat antar akun yang tersimpan di perangkat ini (Maksimal 3 Akun).
+                </p>
+              </div>
+
+              <div className="p-5 sm:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60 shadow-xs space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-blue-500/30 bg-blue-500/5">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                      <Users className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                        Kelola Akun Tersimpan
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
+                          Maks 3 Akun
+                        </span>
+                      </h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-md">
+                        Beralih cepat antar akun terdaftar, tambah akun baru, atau hapus sesi akun tanpa logout manual.
+                      </p>
+                    </div>
+                  </div>
+                  <Link
+                    href="/settings/switch-account"
+                    className="shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-500 hover:bg-blue-600 text-white active:scale-95 transition-all shadow-xs"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Buka Switch Account</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 6. ZONA KRITIS (DANGER ZONE) */}
           {activeSection === "danger" && (
             <div className="space-y-6 max-w-3xl">
@@ -1535,35 +1585,6 @@ export default function SettingsPage() {
                   >
                     Hapus Akun
                   </button>
-                </div>
-              </div>
-
-              {/* Fitur Switch Account (Batas Maksimal 3 Akun) */}
-              <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl border border-blue-500/30 bg-blue-500/5">
-                  <div className="flex items-start sm:items-center gap-3.5">
-                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
-                      <Users className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                        Switch Account (Ganti Akun)
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-600 dark:text-blue-400">
-                          Maks 3 Akun
-                        </span>
-                      </h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 max-w-md">
-                        Beralih cepat antar akun yang tersimpan atau tambahkan akun baru tanpa harus logout manual.
-                      </p>
-                    </div>
-                  </div>
-                  <Link
-                    href="/settings/switch-account"
-                    className="shrink-0 flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-bold rounded-xl bg-blue-500 hover:bg-blue-600 text-white active:scale-95 transition-all shadow-xs"
-                  >
-                    <Users className="w-4 h-4" />
-                    <span>Buka Switch Account</span>
-                  </Link>
                 </div>
               </div>
             </div>
