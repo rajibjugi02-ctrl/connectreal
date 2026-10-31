@@ -25,14 +25,27 @@ export function AppShell({ children }: AppShellProps) {
   // Real-Time LAN Server Synchronization (Laptop <-> HP)
   useServerSync();
 
-  // Sync dark class on initial mount
+  // Sync dark class on initial mount & pastikan hidrasi client selesai
   useEffect(() => {
     setMounted(true);
+
+    // Tandai hidrasi store aktif di sisi client
+    useAppStore.getState().setHydrated(true);
+
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
       document.documentElement.classList.remove("dark");
     }
+
+    // Fail-safe timeout: pastikan status hidrasi tidak pernah macet
+    const fallbackTimer = setTimeout(() => {
+      if (!useAppStore.getState().isHydrated) {
+        useAppStore.getState().setHydrated(true);
+      }
+    }, 400);
+
+    return () => clearTimeout(fallbackTimer);
   }, [theme]);
 
   // Auth Protection: Jika sudah terhidrasi tapi belum login dan membuka halaman selain /auth, arahkan ke /auth

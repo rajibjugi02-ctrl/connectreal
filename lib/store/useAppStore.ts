@@ -2343,6 +2343,9 @@ export const useAppStore = create<AppState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           sanitizePersistedStore(state);
+          state.setHydrated(true);
+        } else {
+          useAppStore.getState().setHydrated(true);
         }
       },
       partialize: (state) => ({
